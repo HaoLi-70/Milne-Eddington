@@ -1,0 +1,61 @@
+
+
+# Default values
+ccompiler="mpicc"
+prefix=$PWD
+lflags="-lcfitsio"
+iflags="-I/usr/local/Cellar/cfitsio/4.4.0/include"
+# iflags="-I/home/lihao/libraries/cfitsio-4.4.0/include"
+
+cflags="-O1"
+
+for arg in "$@"; do
+    case "$arg" in
+
+    --prefix=*)
+    prefix=`echo $arg | sed 's/--prefix=//'`
+	;;
+
+    --ccompiler=*)
+    ccompiler=`echo $arg | sed 's/--ccompiler=//'`
+	;;
+
+    --hard)
+    cflags="-O3"
+	;;
+
+
+    --debug)
+    cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic"
+	;;
+
+    --help)
+        echo 'usage: ./configure [options]'
+        echo 'options:'
+        echo '  --prefix=<path>         installation prefix [default = .]'
+        echo '  --ccompiler=[cc]        C compiler used [default = mpicc]'
+        echo '  @ Predefined families of compilation flags:'
+        echo '  --hard                  use aggressive optimization:'
+        echo '                             -O3'
+        echo '  --debug                  use safe optimization:'
+        echo '                             -g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic'
+        echo ' # Note: the lflags and -o are always included'
+        echo ''
+        exit 0
+        ;;
+    esac
+done
+
+echo 'generating makefile ...' 
+if [ "${prefix: -1}" != "/" ]; then
+  prefix="$prefix/"
+fi
+echo "PREFIX = $prefix" > Makefile
+echo "CMP = $ccompiler" >> Makefile
+echo "CFLAGS = -c $cflags -o" >> Makefile
+echo "LFLAGS = $lflags" >> Makefile
+echo "IFLAGS = $iflags" >> Makefile
+
+
+cat Src/makefile.in >> Makefile
+echo 'configuration complete, type make to build.'

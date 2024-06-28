@@ -1,0 +1,49 @@
+verbose = 0
+
+num_iter = 40
+
+num_run = 3
+
+lines =  6302.4932,  2.5
+
+
+
+data_path = ../DATA/hinodedata_inv.fits
+
+wavelength_path = ../DATA/hinodewavelength.fits
+
+#weights = 1, 10, 10, 7
+weights = 1, 5, 5, 3.5
+#weights = 1, 3, 3, 1.5
+#weights = 1, 4, 4, 2
+
+
+!sol_box = 200, 202, 200, 202
+!sol_box = -1, -1, -1, -1
+!!sol_box = 5, 5, 195, 195
+!sol_box = 2300, 2799, 2000, 2999
+!sol_box = 1000, 1400, 1000, 1400
+!sol_box = 1132, 1132, 1153, 1153
+!sol_box = 3300, 3499, 1000, 1199
+
+
+!Bmod_fixed = YES
+!Btheta_fixed = YES
+!Bphi_fixed = YES
+!Damp_fixed = YES
+
+
+Btheta_Regularization = Yes, 0.5, 1e-3
+Dopp_Regularization = YES, 25, 1e-3
+Damp_Regularization = YES, 0.5, 100
+
+Eta_Regularization =  YES, 2.0, 2e-3
+
+!output_fit = YES
+
+chisq_criteria = 2
+
+Icriteria = 10.
+
+SVDthreshold = 1e-3
+
