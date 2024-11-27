@@ -59,8 +59,8 @@ extern int Error(enum error_level error_lv, const char *rname,\
         if(Filename){
           Fa = fopen(Filename, "w+");
           if(!Fa) Fa = fopen(Filename, "w");
-        fprintf(stderr, "\n-WARNING in routine %s\n %s\n", rname, \
-            Emes);
+          fprintf(stderr, "\n-WARNING in routine %s\n %s\n", rname, \
+              Emes);
           fclose(Fa);
         }else{
           fprintf(stderr, "\n-WARNING in routine %s\n %s\n", rname, \

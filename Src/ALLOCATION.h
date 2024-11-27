@@ -43,7 +43,12 @@ extern int FREE_MATRIX_RHO_CPLX(complex double **Rho);
 extern double ***TENSOR_DBL(long Ni0, long Ni1, long Nj0, long Nj1, \
     long Nk0, long Nk1, bool Init);
 
-extern int FREE_TENSOR_DBL(double ***C, long Ni0, long Nj0, long Nk0);
+extern int FREE_TENSOR_DBL(double ***T, long Ni0, long Nj0, long Nk0);
+
+extern float ***TENSOR_FLT(long Ni0, long Ni1, long Nj0, long Nj1, \
+    long Nk0, long Nk1, bool Init);
+
+extern int FREE_TENSOR_FLT(float ***T, long Ni0, long Nj0, long Nk0);
 
 extern complex double ***TENSOR_CPLX(long Ni0, long Ni1, long Nj0, \
     long Nj1, long Nk0, long Nk1, bool Init);

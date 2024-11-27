@@ -1,17 +1,25 @@
 
+
+#
+#  revision log:
+#
+#    27 Nov. 2024
+#      --- Update: the compiled .o files are moved to Objs folder (Hao Li)
+#
+
 src_dir=Src/
+obj_dir=Objs/
 
-
-all: MEINVERSION
+all: MEINV
 
 SRC := $(wildcard $(src_dir)*.c)
-OBJS := $(SRC:.c=.o)
+OBJS := $(SRC:$(src_dir)%.c=$(obj_dir)%.o)
 
-%.o: %.c
+$(obj_dir)%.o: $(src_dir)%.c
 	$(CMP) $(CFLAGS) $@ $< $(IFLAGS)
 
-MEINVERSION: $(OBJS)
-	$(CMP) -o MEINVERSION $(OBJS) -L. $(LFLAGS)  -lm
+MEINV: $(OBJS)
+	$(CMP) -o MEINV $(OBJS) -L. $(LFLAGS)  -lm
 
 .PHONY:clean
 

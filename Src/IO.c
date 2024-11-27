@@ -7,6 +7,10 @@
      
       revision log:
 
+        27 Nov. 2024
+          --- Updates: a new subroutine rprofileall to read all the 
+              profiles for the fast mode (Hao Li)
+
         28 Jun. 2024
           --- Initial commit (Hao Li)
 
@@ -368,7 +372,6 @@ extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       }
     }   
 
-
     Input->delta_v = (Stk->Lambda[Stk->nl-1]-Stk->Lambda[0])/Stk->nl \
         /Input->Lines[0].Lambda0*Par_C/1e3;
 
@@ -431,6 +434,70 @@ extern int rprofile(STRUCT_INPUT *Input, int coord[], STRUCT_STK *Stk){
       fits_read_pix(Input->fptr_data, TSHORT, Input->fpixel, Stk->nl*4, \
           NULL, Input->data_int, NULL, &status);
       for(i=0;i<Stk->nl*4;i++) Stk->prof[0][i] = (double)Input->data_int[i];
+    }
+
+////////////////////SDO filter
+/*
+    for(i=0;i<4;i++){
+      Stk->prof[i][0] *= 1.49279/1.43858806880917;
+      Stk->prof[i][1] *= 1.49279/1.49139978559615;
+      Stk->prof[i][2] *= 1.49279/1.52324167542270;
+      Stk->prof[i][3] *= 1.49279/1.52811487224149;
+      Stk->prof[i][4] *= 1.49279/1.50984871281028;
+      Stk->prof[i][5] *= 1.49279/1.46553486521323;
+    }
+*/
+    // close the file.
+    fits_close_file(Input->fptr_data, &status);
+
+    return 0;
+}
+
+/*--------------------------------------------------------------------------------*/
+
+extern int rprofileall(STRUCT_INPUT *Input, STRUCT_STK *Stk){
+
+/*--------------------------------------------------------------------------------*/
+
+    /*######################################################################
+      Purpose:
+        Save the best parameters.
+      Record of revisions:
+        27 Nov. 2024 (Hao Li)
+      Input parameters:
+        Input, the input configuration.
+        Stk, structure with Stokes profiles.
+      Output parameters:
+        Stk, structure with Stokes profiles.
+    ######################################################################*/
+
+/*--------------------------------------------------------------------------------*/
+
+    const char *rname = "rprofileall";
+
+    // CFITSIO status value MUST be initialized to zero!
+    int status = 0;
+
+    // open the file.    
+    fits_open_file(&(Input->fptr_data), Input->Data_Path, READONLY, &status);
+    
+    // the first pixel
+    long fpixel[4];
+
+    fpixel[0] = 1;
+    fpixel[1] = 1;
+    fpixel[2] = 1;
+    fpixel[3] = 1;
+
+    // read the profle
+    if(Input->type_data == enum_flt){
+      fits_read_pix(Input->fptr_data, TFLOAT, fpixel, \
+          Stk->nl*4*Input->nx*Input->ny, NULL, Stk->profall[0][0], \
+          NULL, &status);  
+    }else{
+      sprintf(MeSS, "only float is supported in the fast mode.\n");
+      Error(enum_error, rname, MeSS, NULL);
+      return 1;  
     }
 
 ////////////////////SDO filter

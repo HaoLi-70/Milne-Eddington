@@ -122,14 +122,12 @@ typedef struct Struct_input{
     // structure with some precomputed coefficients.
     STRUCT_FADDEEVA *Fadd;
 
-    bool Regul, Azimuth_Rotate;
+    bool Regul, Azimuth_Rotate, fastmode;
 
     double VCoeffi, LCoeffi, Icriteria;
 
     double delta_v;
 
-    long seeds;
-  
 }STRUCT_INPUT;
 
 /*--------------------------------------------------------------------------------*/
@@ -145,6 +143,8 @@ typedef struct Struct_Stokes{
     double *Lambda, **prof, **syn, *noise;
     // the Jacobian used for the inversion.
     double ***Jacobian;
+    // input profiles
+    float ***profall;
 
 }STRUCT_STK;
 

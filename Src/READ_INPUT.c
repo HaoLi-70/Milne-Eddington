@@ -7,6 +7,9 @@
      
       revision log:
 
+        27 Nov. 2024
+          --- Updates:  fast mode of the inversion (Hao Li)
+
         28 Jun. 2024
           --- Initial commit (Hao Li)
      
@@ -62,7 +65,7 @@ static double Geffect(double Gu, double Gl, double Ju, double Jl){
       Purpose:
         Computes the effective Lande factor.
       Modified:
-        25 Apr. 2018 (Hao Li)
+        27 Nov. 2024 (Hao Li)
       Input parameters:
         Gu, The lande factor of upper level.
         Gl, The lande factor of lower level.
@@ -615,6 +618,21 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
       }
     }
 
+
+    indx = 50;
+    String_to_Upper(Keywords[indx].line);
+    if(strcmp(Keywords[indx].line, "YES") == 0){
+      Input->fastmode = true;
+    }else{
+      Input->fastmode = false;
+    }
+    if(Mpi->rank== 0){
+      if(Input->Azimuth_Rotate){
+        sprintf(MeSS, "\n Fast mode : Yes");
+        VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>0);
+      }
+    }
+
     return 0;
 
 }
@@ -630,7 +648,7 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
       Purpose:
         Read the input.
       Record of revisions:
-        28 Jun. 2024 (Hao Li)  
+        27 Nov. 2024 (Hao Li)  
       Input parameters:
         Filename, the path to the input file.
       Output parameters:
@@ -699,7 +717,8 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
       {"LCoeffi", "25000.", false, false}, //46
       {"Icriteria", "1000.", false, false}, //47
       {"SVDthreshold", "1e-3", false, false}, //48
-      {"Azm_Rot", "No", false, false} //49
+      {"Azm_Rot", "No", false, false}, //49
+      {"Fastmode", "Yes", false, false} //50
     };
     nKeywords = sizeof(Keywords)/sizeof(STRUCT_KEYS);
     

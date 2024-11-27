@@ -7,6 +7,10 @@
      
      revision log:
 
+        27 Nov. 2024
+          --- Updates:  the random seeds are moved to the Mpi structure 
+                        (Hao Li)
+
         28 Jun. 2024
           --- Initial commit (Hao Li)
      
@@ -33,7 +37,7 @@ static bool Lambda_propose(STRUCT_LM *LM, bool accepted);
 static bool converg_check(double Chisq, double Chisq_new, \
         STRUCT_INPUT *Input);
 
-static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_INPUT *Input);
+static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi);
 
 static int Get_Regul(STRUCT_INPUT *Input, double *Par, STRUCT_LM *LM, 
         bool matrix_flag);
@@ -224,7 +228,7 @@ static bool converg_check(double Chisq, double Chisq_new, \
 
 /*--------------------------------------------------------------------------------*/
 
-static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_INPUT *Input){
+static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi){
 
 /*--------------------------------------------------------------------------------*/
 
@@ -232,10 +236,11 @@ static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_INPUT *Input){
       Purpose:
         jumping the initial azimuth another value.
       Record of revisions:
-        28 Jun. 2024 (Hao Li)
+        27 Nov. 2024 (Hao Li)
       Input parameters:
         Par, structure with the model parameters
         indx, index of the run.
+        Mpi, structure with tha random seeds.
       Output parameter:
         Par, structure with the model parameters
     ######################################################################*/
@@ -248,29 +253,29 @@ static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_INPUT *Input){
       Par->Par[i] = Par->Par_Guess[i];
     }
 
-    Par->Par[2] = Par->Par_Guess[2]+Par_Pi/12.*GASDEV(&Input->seeds);
+    Par->Par[2] = Par->Par_Guess[2]+Par_Pi/12.*GASDEV(Mpi->idum);
 
-    Par->Par[3] = Par->Par_Guess[3]+Par_Pi/2.*GASDEV(&Input->seeds);
+    Par->Par[3] = Par->Par_Guess[3]+Par_Pi/2.*GASDEV(Mpi->idum);
 
-    Par->Par[4] = Par->Par_Guess[4]+0.2*GASDEV(&Input->seeds);
+    Par->Par[4] = Par->Par_Guess[4]+0.2*GASDEV(Mpi->idum);
 
     Par->Par[6] = Par->Par_Guess[6];
 
     if(Par->Par_Best[1]>2000){
-      Par->Par[1] = Par->Par_Guess[1]+500+500*GASDEV(&Input->seeds);
-      Par->Par[5] = 5*GASDEV(&Input->seeds)+15;
-      Par->Par[7] = 5*GASDEV(&Input->seeds)+40;
-      Par->Par[9] = 0.1*GASDEV(&Input->seeds)+0.4;
+      Par->Par[1] = Par->Par_Guess[1]+500+500*GASDEV(Mpi->idum);
+      Par->Par[5] = 5*GASDEV(Mpi->idum)+15;
+      Par->Par[7] = 5*GASDEV(Mpi->idum)+40;
+      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+0.4;
     }if(Par->Par_Guess[1]>1100){
-      Par->Par[1] = Par->Par_Guess[1]+200+200*GASDEV(&Input->seeds);
-      Par->Par[5] = 5*GASDEV(&Input->seeds)+Par->Par_Guess[5];
-      Par->Par[7] = 5*GASDEV(&Input->seeds)+Par->Par_Guess[7];
-      Par->Par[9] = 0.1*GASDEV(&Input->seeds)+Par->Par_Guess[9];
+      Par->Par[1] = Par->Par_Guess[1]+200+200*GASDEV(Mpi->idum);
+      Par->Par[5] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[5];
+      Par->Par[7] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[7];
+      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+Par->Par_Guess[9];
     }else{
       Par->Par[1] = Par->Par_Guess[1];
-      Par->Par[5] = 5*GASDEV(&Input->seeds)+Par->Par_Guess[5];
-      Par->Par[7] = 5*GASDEV(&Input->seeds)+Par->Par_Guess[7];
-      Par->Par[9] = 0.1*GASDEV(&Input->seeds)+Par->Par_Guess[9];
+      Par->Par[5] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[5];
+      Par->Par[7] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[7];
+      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+Par->Par_Guess[9];
     }
     
     Par->Par[8] = Par->Par_Best[8];
@@ -729,7 +734,7 @@ extern int LM_FIT(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PAR *Par, \
 /*--------------------------------------------------------------------------------*/
 
 extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
-        STRUCT_PAR *Par, STRUCT_LM *LM){
+        STRUCT_PAR *Par, STRUCT_LM *LM, STRUCT_MPI *Mpi){
 
 /*--------------------------------------------------------------------------------*/
 
@@ -737,18 +742,19 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       Purpose:
         ME inversion of Stokes profiles
       Record of revisions:
-        17 Apr. 2024 (Hao Li)
+        27 Nov. 2024 (Hao Li)
       Input parameters:
         Input, the input configuration.
         Stk, structure with the Stokes profiles
         Par, structure with the model parameters
         LM, structure with the hessian matrix.
+        Mpi, structure with MPI information.
       Output:
         Par, return the best fit parameters.
         Stk, return the best fit profiles if needed.
     ######################################################################*/
 
-/*----------------------------------------------------------------------------*/  
+/*--------------------------------------------------------------------------------*/
   
     int i, nrun;
 
@@ -767,7 +773,7 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       sprintf(MeSS, "\n ### inversion run: %d  \n", i);
       Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
       if(i > 0){ 
-        Random_Jump(Par, i, Input);
+        Random_Jump(Par, i, Mpi);
         sprintf(MeSS, "\n  ramdom jumping: %d \n", i);
         Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
       }

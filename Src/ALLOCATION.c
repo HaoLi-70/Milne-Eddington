@@ -7,6 +7,10 @@
      
       revision log:
 
+        26 Nov. 2024.
+          --- Update: new subroutines TENSOR_FLT and FREE_TENSOR_FLT for
+              floats (Hao Li)
+
         30 Oct. 2022.
           --- Initial commit (Hao Li)
 
@@ -1248,6 +1252,89 @@ extern int FREE_TENSOR_DBL(double ***T, long Ni0, long Nj0, long Nk0){
         free a tensor allocated with TENSOR_DBL().
       Record of revisions:
         8 Sept. 2021 (Hao Li)
+      Input parameters:
+        **T, the pointer.
+        Ni0, Nj0, Nk0, the first index of subscript range.
+      Return:
+        .
+    ######################################################################*/
+
+    free(T[Ni0][Nj0]+Nk0);
+    free(T[Ni0]+Nj0);
+    free((T+Ni0));
+    
+    return 0;
+}
+
+/*--------------------------------------------------------------------------------*/
+
+extern float ***TENSOR_FLT(long Ni0, long Ni1, long Nj0, long Nj1, \
+                            long Nk0, long Nk1, bool Init){
+    
+    /*######################################################################
+      Purpose:
+        allocate an float tensor C[i][j][k] with subscript range
+            Ni0<=i<=Ni1, Nj0<=j<=Nj1, Nk0<=k<=Nk1.
+      Record of revisions:
+        26 Nov. 2024 (Hao Li)
+      Input parameters:
+        Ni0, Ni1, Nj0, Nj1, Nk0, Nk1, the subscript range.
+        Init, intialize the matrix with 0 or not.
+      Return:
+        return the pointer.
+      Reference:
+        numerical recipes in C 2ed.
+    ######################################################################*/
+
+    long Ni = Ni1-Ni0+1, Nj = Nj1-Nj0+1, Nk = Nk1-Nk0+1, i, j;
+    float ***C;
+    
+    long byte1 = Ni*sizeof(float **);
+    long byte2 = (Ni*Nj)*sizeof(float *);
+    long byte3 = (Ni*Nj*Nk)*sizeof(float);
+
+    C = (float ***)malloc(byte1);
+
+    if(!C) nrerror("allocation failure 1 in TENSOR_DBL()");
+
+    C -= Ni0;
+    
+    C[Ni0] = (float **)malloc(byte2);
+
+    if(!C[Ni0]) nrerror("allocation failure 2 in TENSOR_DBL()");
+
+    C[Ni0] -= Nj0;
+
+    for(i=Ni0+1; i<=Ni1; i++) C[i] = C[i-1]+Nj;
+    
+    C[Ni0][Nj0] = (float *)malloc(byte3);
+
+    if(!C[Ni0][Nj0]) nrerror("allocation failure 3 in TENSOR_DBL()");
+    
+    if(Init) memset(C[Ni0][Nj0], 0, byte3);
+  
+    C[Ni0][Nj0] -= Nk0;
+
+    for(i=Ni0+1; i<=Ni1; i++) C[i][Nj0] = C[i-1][Nj0]+Nj*Nk;
+    
+    for(i=Ni0; i<=Ni1; i++){
+      for(j=Nj0+1; j<=Nj1; j++){
+        C[i][j] = C[i][j-1]+Nk;
+      }
+    }
+    
+    return C;
+}
+
+/*--------------------------------------------------------------------------------*/
+
+extern int FREE_TENSOR_FLT(float ***T, long Ni0, long Nj0, long Nk0){
+    
+    /*######################################################################
+      Purpose:
+        free a tensor allocated with TENSOR_FLT().
+      Record of revisions:
+        26 Nov. 2021 (Hao Li)
       Input parameters:
         **T, the pointer.
         Ni0, Nj0, Nk0, the first index of subscript range.

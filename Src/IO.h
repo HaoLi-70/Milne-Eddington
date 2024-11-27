@@ -18,6 +18,8 @@ extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
 
 extern int rprofile(STRUCT_INPUT *Input, int coord[], STRUCT_STK *Stk);
 
+extern int rprofileall(STRUCT_INPUT *Input, STRUCT_STK *Stk);
+
 extern int **cache_init(STRUCT_INPUT *Input, STRUCT_MPI *Mpi, \
         STRUCT_STK *Stk, int *status);
 
