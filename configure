@@ -5,8 +5,8 @@ ccompiler="mpicc"
 prefix=$PWD
 lflags="-lcfitsio"
 iflags="-I/opt/homebrew/Cellar/cfitsio/4.4.1/include"
-#iflags="-I/usr/local/Cellar/cfitsio/4.4.0/include"
-# iflags="-I/home/lihao/libraries/cfitsio-4.4.0/include"
+
+#iflags="-I/home/hao/libraries/cfitsio-4.5.0/include"
 
 cflags="-O1"
 

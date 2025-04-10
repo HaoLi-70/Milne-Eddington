@@ -6,6 +6,9 @@
     /*######################################################################
      
       revision log:
+      
+        14 Jan. 2025
+          --- bugfix:  fix the format for sprintf (Hao Li)
 
         27 Nov. 2024
           --- Updates:  fast mode of the inversion (Hao Li)
@@ -95,7 +98,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
       Purpose:
         Convert the keywords to inversion configuration.
       Record of revisions:
-        28 Jun. 2024 (Hao Li)
+        14 Jan. 2025 (Hao Li)
       Input parameters:
         Keywords, structure with the input configuration.
       Output parameters:
@@ -275,7 +278,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
 
 
     indx = 11;
-    sprintf(Input->Cache_Path, Keywords[indx].line);
+    sprintf(Input->Cache_Path, "%s", Keywords[indx].line);
     if(Mpi->rank== 0){
       sprintf(MeSS, "\n path to the cache file : %s", \
           Input->Cache_Path);
@@ -284,7 +287,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
 
 
     indx = 12;
-    sprintf(Input->Result_Path, Keywords[indx].line);
+    sprintf(Input->Result_Path, "%s", Keywords[indx].line);
     if(Mpi->rank== 0){
       sprintf(MeSS, "\n path to the result file : %s", \
           Input->Result_Path);
@@ -293,7 +296,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
 
 
     indx = 13;
-    sprintf(Input->Fit_Path, Keywords[indx].line);
+    sprintf(Input->Fit_Path, "%s", Keywords[indx].line);
     if(Mpi->rank== 0){
       sprintf(MeSS, "\n path to the fit profile : %s", \
           Input->Fit_Path);
@@ -549,7 +552,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
           nread = sscanf(p,"%lf, %lf", &(Input->value_const[i]), \
             &(Input->Regul_weight[i]));
 
-          if(nread=2){
+          if(nread==2){
             Input->regl[i] = true;
             Input->Regul = true;
             if(i==2||i==3){

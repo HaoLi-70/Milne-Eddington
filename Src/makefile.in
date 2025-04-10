@@ -1,11 +1,5 @@
 
 
-#
-#  revision log:
-#
-#    27 Nov. 2024
-#      --- Update: the compiled .o files are moved to Objs folder (Hao Li)
-#
 
 src_dir=Src/
 obj_dir=Objs/
