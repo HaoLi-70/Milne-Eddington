@@ -139,8 +139,8 @@ typedef struct Struct_Stokes{
     // nomalization factor, the weights for Stokes parameters and 
     // the squre of the weights
     double norm, Weights[4], Weights_SQR[4];
-    // the wavelength, input profiles, synthesized profiles.
-    double *Lambda, **prof, **syn, *noise;
+    // the wavelength, input profiles, synthesized profiles, best the fit, noise.
+    double *Lambda, **prof, **syn, **fit, *noise;
     // the Jacobian used for the inversion.
     double ***Jacobian;
     // input profiles

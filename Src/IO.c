@@ -7,6 +7,9 @@
      
       revision log:
 
+        11 Apr. 2025
+          --- bugfix:  does not save the best fit (Hao Li)
+
         27 Nov. 2024
           --- Updates: a new subroutine rprofileall to read all the 
               profiles for the fast mode (Hao Li)
@@ -355,7 +358,7 @@ extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
     }
 
     Stk->syn = (double **)MATRIX(0, 3, 0, Stk->nl-1, enum_dbl, false);
-
+    Stk->fit = (double **)MATRIX(0, 3, 0, Stk->nl-1, enum_dbl, false);
 
     if(Mpi->nprocs==1){
       Stk->Jacobian = (double ***)TENSOR_DBL(0, 3, 1, \

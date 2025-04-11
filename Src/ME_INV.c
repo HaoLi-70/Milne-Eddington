@@ -474,7 +474,7 @@ int main(int argc, char *argv[]) {
               if(Input->output_fit){
 
                 // recieve the fit
-                MPI_Recv(Stk->syn[0], Stk->nl*4, MPI_DOUBLE, ipid, \
+                MPI_Recv(Stk->fit[0], Stk->nl*4, MPI_DOUBLE, ipid, \
                     2000+ipid, MPI_COMM_WORLD, &status);
 
                 // write the fit
@@ -487,7 +487,7 @@ int main(int argc, char *argv[]) {
                 fpixel[2] = coordr[0]+1;
                 fpixel[3] = coordr[1]+1;
                 fits_write_pix(Input->fptr_fit, TDOUBLE, fpixel, Stk->nl*4, \
-                    Stk->syn[0], &stat);
+                    Stk->fit[0], &stat);
 
                 fits_close_file(Input->fptr_fit, &stat);
 
@@ -536,7 +536,7 @@ int main(int argc, char *argv[]) {
             MPI_Send(&Par->Chisq_Best, 1, MPI_DOUBLE, 0, 2000+Mpi->rank, \
                 MPI_COMM_WORLD);
             if(Input->output_fit){
-              MPI_Send(Stk->syn[0], Stk->nl*4, MPI_DOUBLE, 0, \
+              MPI_Send(Stk->fit[0], Stk->nl*4, MPI_DOUBLE, 0, \
                   2000+Mpi->rank, MPI_COMM_WORLD);
 
             }
@@ -612,7 +612,7 @@ int main(int argc, char *argv[]) {
                 fpixel[2] = coordr[0]+1;
                 fpixel[3] = coordr[1]+1;
                 fits_write_pix(Input->fptr_fit, TDOUBLE, fpixel, Stk->nl*4, \
-                    Stk->syn[0], &stat);
+                    Stk->fit[0], &stat);
 
                 fits_close_file(Input->fptr_fit, &stat);
 

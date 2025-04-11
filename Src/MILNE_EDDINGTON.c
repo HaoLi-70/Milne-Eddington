@@ -7,6 +7,9 @@
      
       revision log:
 
+        11 Apr. 2025
+          --- Updates:  Update the initial guess for Fe I 15648 (Hao Li)
+
         28 Jun. 2024
           --- Initial commit (Hao Li)
      
@@ -381,7 +384,7 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
       Purpose:
         Initialize the model patameters
       Record of revisions:
-        18 Jun. 2024 (Hao Li)
+        11 Apr. 2025 (Hao Li)
       Input parameters:
         Stk, structure with Stokes profiles.
         Par, structure with parameters.
@@ -401,9 +404,8 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
 
     LP = sqrt(Stk->prof[1][0]*Stk->prof[1][0]+Stk->prof[2][0] \
         *Stk->prof[2][0])/Stk->prof[0][0]; 
-    LV = fabs(Stk->prof[3][0]/Stk->prof[0][0]);
 
-    double LPmean = LP, LVmean = LV;
+    double LPmean = LP, LVmean = VMin;
 
     sumI = Stk->prof[0][0];
     for(i=1; i<Stk->nl; i++){
@@ -438,6 +440,12 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
     }
 
     LPmean /= Stk->nl;
+    LVmean /= Stk->nl;
+    if(VMax>fabs(VMin)){
+      LV = VMax;
+    }else{
+      LV = -VMin;
+    }
 
     // normalization factor
     Input->step[8] = sumI/Stk->nl*0.2;
@@ -485,15 +493,12 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
     Par->Par_Guess[4] = (dtmp-Input->Lines[0].Lambda0) \
         /Input->Lines[0].Lambda0*Par_C/1e3;
 
-
     Par->Limits[4][0] = Par->Par_Guess[4]-Input->delta_v*5;
     Par->Limits[4][1] = Par->Par_Guess[4]+Input->delta_v*5;
 
-    
-
     if(LV>0.001){
       if(iV1<iV2){
-          Blos = -Input->VCoeffi*LV;
+          Blos = -Input->VCoeffi*LV*100;
           if(Blos<-1300) Blos = -1300.;
         }else{
           Blos = Input->VCoeffi*LV;
@@ -503,7 +508,7 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
       Blos = 0;
     }
 
-    Bpos = 20.+Input->LCoeffi*LP;
+    Bpos = 20.+Input->LCoeffi*LP*100;
     if(Bpos>1500){ 
       Bpos = 1500.;
     }else if(Bpos<150){
@@ -526,20 +531,35 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
     // Damp
     Par->Par_Guess[6] = 0.5;
     
-    if(Par->Par_Guess[1]>1100){
-      // Dopp
-      Par->Par_Guess[5] = 20;
-      // Eta
-      Par->Par_Guess[7] = 20;
+    if(Input->Lines[0].Lambda0>15640&&Input->Lines[0].Lambda0<15660){
+
+      Par->Par_Guess[4] += 3.0;
+      Par->Limits[4][0] += 3;
+      Par->Limits[4][1] += 3;
+      Par->Par_Guess[5] = 60.;
       // Beta
-      Par->Par_Guess[9] = 0.3;
+      Par->Par_Guess[9] = 0.5;
+      // Eta
+      Par->Par_Guess[7] = 30;
+
     }else{
-      // Dopp
-      Par->Par_Guess[5] = 30;
-      // Eta
-      Par->Par_Guess[7] = 5;
-      // Beta
-      Par->Par_Guess[9] = 0.15;
+
+      if(Par->Par_Guess[1]>1100){
+        // Dopp
+        Par->Par_Guess[5] = 20;
+        // Eta
+        Par->Par_Guess[7] = 20;
+        // Beta
+        Par->Par_Guess[9] = 0.3;
+      }else{
+        // Dopp
+        Par->Par_Guess[5] = 30;
+        // Eta
+        Par->Par_Guess[7] = 5;
+        // Beta
+        Par->Par_Guess[9] = 0.15;
+      }
+
     }
 
     Input->value_const[7] = Par->Par_Guess[7];

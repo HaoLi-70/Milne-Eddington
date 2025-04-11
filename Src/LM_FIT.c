@@ -7,6 +7,9 @@
      
      revision log:
 
+        11 Apr. 2025
+          --- bugfix:  does not save the best fit (Hao Li)
+
         27 Nov. 2024
           --- Updates:  the random seeds are moved to the Mpi structure 
                         (Hao Li)
@@ -18,7 +21,7 @@
 
 /*--------------------------------------------------------------------------------*/
 
-static int sav_par(STRUCT_PAR *Par);
+static int sav_par(STRUCT_PAR *Par, STRUCT_STK *Stk);
 
 static int Noise_Init(STRUCT_STK *Stk);
 
@@ -47,7 +50,7 @@ static int SVD_solve_mem(double **A, double *B, double *X, \
 
 /*--------------------------------------------------------------------------------*/
 
-static int sav_par(STRUCT_PAR *Par){
+static int sav_par(STRUCT_PAR *Par, STRUCT_STK *Stk){
   
 /*--------------------------------------------------------------------------------*/
 
@@ -55,7 +58,7 @@ static int sav_par(STRUCT_PAR *Par){
       Purpose:
         Save the best fit parameters.
       Record of revisions:
-        25 Apr. 2024 (Hao Li)
+        11 Apr. 2025 (Hao Li)
       Input parameters:
         Par, structure with parameters.
       Output parameter:
@@ -64,11 +67,15 @@ static int sav_par(STRUCT_PAR *Par){
 
 /*--------------------------------------------------------------------------------*/
 
-    double *p;
+    double *p, **pp;
 
     p = Par->Par_Best;
     Par->Par_Best = Par->Par;
     Par->Par = p;
+    
+    pp = Stk->fit;
+    Stk->fit = Stk->syn;
+    Stk->syn = pp;
 
     Par->Chisq_Best = Par->Chisq;
 
@@ -742,7 +749,7 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       Purpose:
         ME inversion of Stokes profiles
       Record of revisions:
-        27 Nov. 2024 (Hao Li)
+        11 Apr. 2025 (Hao Li)
       Input parameters:
         Input, the input configuration.
         Stk, structure with the Stokes profiles
@@ -781,12 +788,12 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       LM_FIT(Input, Stk, Par, LM);
 
       if(Par->Chisq < Input->Chisq_Criteria){
-        sav_par(Par);
+        sav_par(Par, Stk);
         break;
       }else if (i == 0){
-        sav_par(Par);
+        sav_par(Par, Stk);
       }else if (Par->Chisq < Par->Chisq_Best){
-        sav_par(Par);
+        sav_par(Par, Stk);
       }
 
     }
@@ -798,7 +805,9 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
 
     sprintf(MeSS, "\n  ### best run : ");
     Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
-    Verbose_model(Par->Par, Input->Verbose_Path, Input->verboselv<=1);
+    sprintf(MeSS, " --- Best chisq = %.6e --- \n", Par->Chisq_Best);
+    Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
+    Verbose_model(Par->Par_Best, Input->Verbose_Path, Input->verboselv<=1);
 
     return i;
 }

@@ -6,7 +6,10 @@
     /*######################################################################
      
       revision log:
-      
+
+        11 Apr. 2025
+          --- bugfix:  does not save the best fit (Hao Li)
+
         14 Jan. 2025
           --- bugfix:  fix the format for sprintf (Hao Li)
 
@@ -716,8 +719,8 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
       {"Eta_Regularization", "NO, 2.0, 0.01", false, false}, //42
       {"Continuum_Regularization", "NO", false, false}, //43
       {"Beta_Regularization", "NO", false, false}, //44
-      {"VCoeffi", "10000.", false, false}, //45
-      {"LCoeffi", "25000.", false, false}, //46
+      {"VCoeffi", "100.", false, false}, //45
+      {"LCoeffi", "250.", false, false}, //46
       {"Icriteria", "1000.", false, false}, //47
       {"SVDthreshold", "1e-3", false, false}, //48
       {"Azm_Rot", "No", false, false}, //49
@@ -951,6 +954,7 @@ extern int Free_Ram(STRUCT_LM *LM, STRUCT_STK *Stk, STRUCT_INPUT *Input,
     }
     
     FREE_MATRIX((void *)Stk->prof, 0, 0, enum_dbl);
+    FREE_MATRIX((void *)Stk->fit, 0, 0, enum_dbl);
     FREE_MATRIX((void *)Stk->syn, 0, 0, enum_dbl);
     free(Stk);
 
