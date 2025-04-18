@@ -7,6 +7,9 @@
      
       revision log:
 
+        18 Apr. 2025
+          --- Updates: Update the initial guess (Hao Li)
+
         11 Apr. 2025
           --- Updates:  Update the initial guess for Fe I 15648 (Hao Li)
 
@@ -63,7 +66,7 @@ extern int Milne_Eddington(STRUCT_MELINE *Lines, int nline, \
         Calculate the Stokes profiles under M-E atmosphere model (normal 
             Zeeman effect)
       Record of revisions:
-        17 Jun. 2024
+        17 Apr. 2025 (Hao Li)
       Input parameters:
         Lines, structure with the line information.
         nline, number of lines.
@@ -104,7 +107,7 @@ extern int Milne_Eddington(STRUCT_MELINE *Lines, int nline, \
 
     for(i=0;i<nline;i++){
       ShiftB[i] = Lines[i].Par[1]*Lines[i].BShift/Lines[i].Par[5];
-      ShiftV[i] = 1e3*(-1e3*Lines[0].Par[4]/Par_C*Lines[i].Lambda0 \
+      ShiftV[i] = 1e3*(-1e3*Lines[i].Par[4]/Par_C*Lines[i].Lambda0 \
         -Lines[i].Lambda0)/Lines[i].Par[5];
     }
 
@@ -384,7 +387,7 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
       Purpose:
         Initialize the model patameters
       Record of revisions:
-        11 Apr. 2025 (Hao Li)
+        17 Apr. 2025 (Hao Li)
       Input parameters:
         Stk, structure with Stokes profiles.
         Par, structure with parameters.
@@ -397,15 +400,15 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
 /*--------------------------------------------------------------------------------*/  
 
     int i, iV1 = 0, iV2 = 0, iL = 0; 
-    double IMax = Stk->prof[0][0], VMax = Stk->prof[3][0]/Stk->prof[0][0];
-    double IMin = IMax, VMin = VMax, delta_v, sumQ = 0., sumU = 0.;
-    double dtmp, LP, LV, sumI, sumL = 0.0; 
+    double delta_v, sumQ = 0., sumU = 0.;
+    double dtmp, dtmp1, LV, sumI, sumL = 0.0; 
     double weight = 0.0, Blos = 1.0, Bpos =1.0;
+    int nminimum = 0, iminimum = 0, ntmp;
 
-    LP = sqrt(Stk->prof[1][0]*Stk->prof[1][0]+Stk->prof[2][0] \
-        *Stk->prof[2][0])/Stk->prof[0][0]; 
-
-    double LPmean = LP, LVmean = VMin;
+    double IMax = Stk->prof[0][0], VMax = Stk->prof[3][0]/Stk->prof[0][0];
+    double LP = sqrt(Stk->prof[1][0]*Stk->prof[1][0]+Stk->prof[2][0] \
+      *Stk->prof[2][0])/Stk->prof[0][0]; 
+    double IMin = IMax, VMin = VMax, LVmean = VMax, LPmean = LP;
 
     sumI = Stk->prof[0][0];
     for(i=1; i<Stk->nl; i++){
@@ -458,84 +461,90 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
     Par->Limits[8][0] = Par->Par_Guess[8]*0.6;
     Par->Limits[8][1] = Par->Par_Guess[8]*1.4;
 
-
-    int nminimum = 0, iminimum = 0, ntmp;
-    sumL = 0.0, weight = 0.0;
-
-    for(i=1; i<Stk->nl-1; i++){
-      if(Stk->prof[0][i]<Stk->prof[0][i-1] \
-          && Stk->prof[0][i]<Stk->prof[0][i+1]){
-        nminimum++;
-        iminimum = i;
-      }
-    }
-
-    if(nminimum == 1 && LV < 0.05 && LP < 0.1 && false){
-      /*
-      ntmp = iminimum<Stk->nl-1-iminimum?iminimum:Stk->nl-1-iminimum;
-      for(i=iminimum-ntmp; i<=iminimum-ntmp; i++){
-        sumL += Stk->Lambda[i]*(Par->Par_Guess[8]-Stk->prof[0][i]);
-        weight += Par->Par_Guess[8]-Stk->prof[0][i];
-      }
-      dtmp = sumL/weight;
-      */
-      dtmp = Parabolic(Stk->Lambda, Stk->prof[0], iminimum);
-
-    }else{
-
-      for(i=0; i<Stk->nl; i++){
-        sumL += Stk->Lambda[i]*(Par->Par_Guess[8]-Stk->prof[0][i]);
-        weight += Par->Par_Guess[8]-Stk->prof[0][i];
-      }
-      dtmp = sumL/weight;
-    }
-
-    Par->Par_Guess[4] = (dtmp-Input->Lines[0].Lambda0) \
-        /Input->Lines[0].Lambda0*Par_C/1e3;
-
-    Par->Limits[4][0] = Par->Par_Guess[4]-Input->delta_v*5;
-    Par->Limits[4][1] = Par->Par_Guess[4]+Input->delta_v*5;
-
-    if(LV>0.001){
-      if(iV1<iV2){
-          Blos = -Input->VCoeffi*LV*100;
-          if(Blos<-1300) Blos = -1300.;
-        }else{
-          Blos = Input->VCoeffi*LV;
-          if(Blos>1300) Blos = 1300.;
-      }
-    }else{
-      Blos = 0;
-    }
-
-    Bpos = 20.+Input->LCoeffi*LP*100;
-    if(Bpos>1500){ 
-      Bpos = 1500.;
-    }else if(Bpos<150){
-      Bpos = 150;
-    }
-
-    // Bstrength
-    Par->Par_Guess[1] = sqrt(Blos*Blos+Bpos*Bpos);
-
-    // inclination
-    Par->Par_Guess[2] = acos(Blos/Par->Par_Guess[1]);
-    //Par->Par_Guess[2] = Par_Pi/2.;
-
-    // tan(2*alpha) = U/Q;
-    Par->Par_Guess[3] = 0.5*atan2(Stk->prof[2][iL], Stk->prof[1][iL]);
-    //Par->Par_Guess[3] = 0.5*atan2(sumU, sumQ);
-
-    if(Par->Par_Guess[3]<0) Par->Par_Guess[3] += Par_Pi;
-
     // Damp
-    Par->Par_Guess[6] = 0.5;
+    Par->Par_Guess[6] = 0.8;
     
     if(Input->Lines[0].Lambda0>15640&&Input->Lines[0].Lambda0<15660){
 
-      Par->Par_Guess[4] += 3.0;
-      Par->Limits[4][0] += 3;
-      Par->Limits[4][1] += 3;
+      if(LV>0.001 && fabs((Stk->prof[3][iV2]/Stk->prof[0][iV2] \
+          +Stk->prof[3][iV1]/Stk->prof[0][iV1])/LV)<0.5){
+      //if(LV>0.001){
+        if(iV1<iV2){
+            Blos = -Input->VCoeffi*LV*100;
+            if(Blos<-1300) Blos = -1300.;
+          }else{
+            Blos = Input->VCoeffi*LV*100;
+            if(Blos>1300) Blos = 1300.;
+        }
+      }else{
+        Blos = 0;
+      }
+  
+      Bpos = 20.+Input->LCoeffi*LP*100;
+      if(Bpos>1500){ 
+        Bpos = 1500.;
+      }else if(Bpos<150){
+        Bpos = 150;
+      }
+
+      for(i=2; i<Stk->nl-2; i++){
+        if(Stk->prof[0][i-1]<Stk->prof[0][i-2] \
+            && Stk->prof[0][i]<Stk->prof[0][i-1] \
+            && Stk->prof[0][i]<Stk->prof[0][i+1] \
+            && Stk->prof[0][i+1]<Stk->prof[0][i+2]){
+          nminimum++;
+          iminimum = i;
+        }
+      }
+
+      if(nminimum == 1 && LV < 0.005 && LP < 0.005){
+  
+        dtmp = Parabolic(Stk->Lambda, Stk->prof[0], iminimum);
+        Par->Par_Guess[4] = (dtmp-Input->Lines[0].Lambda0) \
+            /Input->Lines[0].Lambda0*Par_C/1e3;
+
+        if(Par->Par_Guess[4]>Input->delta_v*1.5){
+          Par->Par_Guess[4]=Input->delta_v*1.5;
+        }else if(Par->Par_Guess[4]<-Input->delta_v*1.5){
+          Par->Par_Guess[4]=-Input->delta_v*1.5;
+        }
+            
+  
+      }else if(LV > 0.015 && fabs((Stk->prof[3][iV2]/Stk->prof[0][iV2] \
+        +Stk->prof[3][iV1]/Stk->prof[0][iV1])/LV)<0.5){
+
+        dtmp1 = 0.5*(Stk->Lambda[iV1]+Stk->Lambda[iV2]);
+
+        for(i=0; i<Stk->nl; i++){
+          sumL += Stk->Lambda[i]*fabs(Stk->prof[3][i]);
+          weight += fabs(Stk->prof[3][i]);
+
+        }
+        dtmp = sumL/weight;
+
+        Par->Par_Guess[4] = (0.5*(dtmp+dtmp1)-Input->Lines[0].Lambda0) \
+            /Input->Lines[0].Lambda0*Par_C/1e3;
+
+        if(Par->Par_Guess[4]>Input->delta_v*1.5){
+          Par->Par_Guess[4]=Input->delta_v*1.5;
+        }else if(Par->Par_Guess[4]<-Input->delta_v*1.5){
+          Par->Par_Guess[4]=-Input->delta_v*1.5;
+        }
+        
+         //Par->Par_Guess[4] = 0.;
+
+      }else{
+  
+        for(i=0; i<Stk->nl; i++){
+          sumL += Stk->Lambda[i]*(Par->Par_Guess[8]-Stk->prof[0][i]);
+          weight += Par->Par_Guess[8]-Stk->prof[0][i];
+        }
+        dtmp = sumL/weight;
+        Par->Par_Guess[4] = (dtmp-Input->Lines[0].Lambda0) \
+          /Input->Lines[0].Lambda0*Par_C/1e3+3.;
+        Par->Par_Guess[4] = 0.;
+      }
+      Par->Par_Guess[4] = 0.;
       Par->Par_Guess[5] = 60.;
       // Beta
       Par->Par_Guess[9] = 0.5;
@@ -543,6 +552,52 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
       Par->Par_Guess[7] = 30;
 
     }else{
+
+      if(LV>0.001){
+        if(iV1<iV2){
+          Blos = -Input->VCoeffi*LV*100;
+          if(Blos<-1300) Blos = -1300.;
+        }else{
+          Blos = Input->VCoeffi*LV*100;
+          if(Blos>1300) Blos = 1300.;
+        }
+      }else{
+        Blos = 0;
+      }
+  
+      Bpos = 20.+Input->LCoeffi*LP*100;
+      if(Bpos>1500){ 
+        Bpos = 1500.;
+      }else if(Bpos<150){
+        Bpos = 150;
+      }
+
+      for(i=1; i<Stk->nl-1; i++){
+        if(Stk->prof[0][i]<Stk->prof[0][i-1] \
+            && Stk->prof[0][i]<Stk->prof[0][i+1]){
+          nminimum++;
+          iminimum = i;
+        }
+      }
+  
+      if(nminimum == 1 && LV < 0.02 && LP < 0.03){
+  
+        dtmp = Parabolic(Stk->Lambda, Stk->prof[0], iminimum);
+  
+      }else{
+  
+        for(i=0; i<Stk->nl; i++){
+          sumL += Stk->Lambda[i]*(Par->Par_Guess[8]-Stk->prof[0][i]);
+          weight += Par->Par_Guess[8]-Stk->prof[0][i];
+        }
+        dtmp = sumL/weight;
+      }
+
+      Par->Par_Guess[4] = (dtmp-Input->Lines[0].Lambda0) \
+          /Input->Lines[0].Lambda0*Par_C/1e3;
+
+      //Par->Limits[4][0] = Par->Par_Guess[4]-Input->delta_v*5;
+      //Par->Limits[4][1] = Par->Par_Guess[4]+Input->delta_v*5;
 
       if(Par->Par_Guess[1]>1100){
         // Dopp
@@ -562,7 +617,23 @@ extern int Init_Guess(STRUCT_STK *Stk, STRUCT_PAR *Par, \
 
     }
 
-    Input->value_const[7] = Par->Par_Guess[7];
+    // Bstrength
+    Par->Par_Guess[1] = sqrt(Blos*Blos+Bpos*Bpos);
+
+    // inclination
+    Par->Par_Guess[2] = acos(Blos/Par->Par_Guess[1]);
+    //Par->Par_Guess[2] = Par_Pi/2.;
+    
+    // tan(2*alpha) = U/Q;
+    Par->Par_Guess[3] = 0.5*atan2(Stk->prof[2][iL], Stk->prof[1][iL]);
+    //Par->Par_Guess[3] = 0.5*atan2(sumU, sumQ);
+    
+    if(Par->Par_Guess[3]<0) Par->Par_Guess[3] += Par_Pi;
+
+    Par->Limits[3][0] = Par->Par_Guess[3]-Par_Pi/2.;
+    Par->Limits[3][1] = Par->Par_Guess[3]+Par_Pi/2.;
+
+    //Input->value_const[7] = Par->Par_Guess[7];
     
     bounds_check(Par->Par_Guess, Par);
 
@@ -597,7 +668,6 @@ extern int bounds_check(double *Parnew, STRUCT_PAR *Par){
 /*--------------------------------------------------------------------------------*/  
     
     int i;
-
     
     if(Parnew[2]<-0.8*Par_Pi) Parnew[2] = -0.8*Par_Pi;
     if(Parnew[2]>1.8*Par_Pi) Parnew[2] = 1.8*Par_Pi;

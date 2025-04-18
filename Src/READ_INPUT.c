@@ -7,6 +7,10 @@
      
       revision log:
 
+        18 Apr. 2025
+          --- Updates: locate the line center 
+                       update a few default parameters (Hao Li)
+
         11 Apr. 2025
           --- bugfix:  does not save the best fit (Hao Li)
 
@@ -654,7 +658,7 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
       Purpose:
         Read the input.
       Record of revisions:
-        27 Nov. 2024 (Hao Li)  
+        18 Apr. 2025 (Hao Li)  
       Input parameters:
         Filename, the path to the input file.
       Output parameters:
@@ -676,8 +680,8 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
     STRUCT_KEYS Keywords[] ={
       {"lines", "", false, true},  //0
       {"verbose", "1", false, false}, //1
-      {"num_iter", "30", false, false}, //2
-      {"num_run", "3", false, false}, //3
+      {"num_iter", "50", false, false}, //2
+      {"num_run", "4", false, false}, //3
       {"convg_criteria", "1e-3", false, false}, //4
       {"chisq_criteria", "1.0", false, false}, //5
       {"data_path", "", false, true}, //6
@@ -692,7 +696,7 @@ extern int RDINPUT(char Filename[], STRUCT_INPUT *Input,  \
       {"lambda_accept", "5.0", false, false}, //15
       {"lambda_reject", "5.0", false, false}, //16
       {"lambda_limits", "1e-5, 1e3", false, false}, //17
-      {"Bounds_Bmod", "5, 4000", false, false}, //18
+      {"Bounds_Bmod", "5, 6000", false, false}, //18
       {"Bounds_Btheta", "0, 1", false, false}, //19
       {"Bounds_Bphi", "-2, 4", false, false}, //20
       {"Bounds_Vlos", "-20., 20.", false, false}, //21

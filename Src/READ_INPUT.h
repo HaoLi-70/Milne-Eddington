@@ -128,6 +128,8 @@ typedef struct Struct_input{
 
     double delta_v;
 
+    int iw;
+
 }STRUCT_INPUT;
 
 /*--------------------------------------------------------------------------------*/

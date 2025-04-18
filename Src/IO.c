@@ -7,6 +7,9 @@
      
       revision log:
 
+        17 Apr. 2025
+          --- Updates: locate the line center (Hao Li)
+
         11 Apr. 2025
           --- bugfix:  does not save the best fit (Hao Li)
 
@@ -30,7 +33,7 @@ extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       Purpose:
         read the wavelength.
       Record of revisions:
-        17 Jun. 2024 (Hao Li)
+        17 Apr. 2025 (Hao Li)
       Input parameters:
         Input, the input configuration.
         Stk, structure with Stokes profiles.
@@ -355,6 +358,18 @@ extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       MPI_Bcast(Stk->Lambda, Stk->nl, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       Stk->prof = (double **)MATRIX(0, 3, 0, Stk->nl-1, enum_dbl, false);
+    }
+
+    for(i=0;i<Stk->nl-1;i++){
+      if(Input->Lines[0].Lambda0>=Stk->Lambda[i] && 
+          Input->Lines[0].Lambda0<=Stk->Lambda[i+1]){
+        if(Stk->Lambda[i+1]-Input->Lines[0].Lambda0 <= 
+            Input->Lines[0].Lambda0-Stk->Lambda[i]){
+          Input->iw = i;
+        }else{
+          Input->iw = i+1;
+        }
+      }
     }
 
     Stk->syn = (double **)MATRIX(0, 3, 0, Stk->nl-1, enum_dbl, false);

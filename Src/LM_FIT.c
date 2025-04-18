@@ -7,6 +7,11 @@
      
      revision log:
 
+        18 Apr. 2025
+          --- Updates: More runs if chisq twice larger than the criteria
+                       The random jump of the model parameter is changed 
+                       (Hao Li)
+
         11 Apr. 2025
           --- bugfix:  does not save the best fit (Hao Li)
 
@@ -40,7 +45,8 @@ static bool Lambda_propose(STRUCT_LM *LM, bool accepted);
 static bool converg_check(double Chisq, double Chisq_new, \
         STRUCT_INPUT *Input);
 
-static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi);
+static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi, 
+        STRUCT_INPUT *Input);
 
 static int Get_Regul(STRUCT_INPUT *Input, double *Par, STRUCT_LM *LM, 
         bool matrix_flag);
@@ -235,7 +241,8 @@ static bool converg_check(double Chisq, double Chisq_new, \
 
 /*--------------------------------------------------------------------------------*/
 
-static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi){
+static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi, 
+    STRUCT_INPUT *Input){
 
 /*--------------------------------------------------------------------------------*/
 
@@ -243,7 +250,7 @@ static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi){
       Purpose:
         jumping the initial azimuth another value.
       Record of revisions:
-        27 Nov. 2024 (Hao Li)
+        17 Apr. 2025 (Hao Li)
       Input parameters:
         Par, structure with the model parameters
         indx, index of the run.
@@ -254,39 +261,31 @@ static int Random_Jump(STRUCT_PAR *Par, int indx, STRUCT_MPI *Mpi){
 
 /*--------------------------------------------------------------------------------*/
 
-    int i;
-
-    for(i=1; i<10; i++){
-      Par->Par[i] = Par->Par_Guess[i];
-    }
-
-    Par->Par[2] = Par->Par_Guess[2]+Par_Pi/12.*GASDEV(Mpi->idum);
+    Par->Par[2] = Par->Par_Guess[2]+Par_Pi/6.*GASDEV(Mpi->idum);
 
     Par->Par[3] = Par->Par_Guess[3]+Par_Pi/2.*GASDEV(Mpi->idum);
 
-    Par->Par[4] = Par->Par_Guess[4]+0.2*GASDEV(Mpi->idum);
+    Par->Par[4] = Par->Par_Guess[4]+5.*GASDEV(Mpi->idum);
 
-    Par->Par[6] = Par->Par_Guess[6];
+    Par->Par[6] = Par->Par_Best[6];
 
-    if(Par->Par_Best[1]>2000){
-      Par->Par[1] = Par->Par_Guess[1]+500+500*GASDEV(Mpi->idum);
-      Par->Par[5] = 5*GASDEV(Mpi->idum)+15;
-      Par->Par[7] = 5*GASDEV(Mpi->idum)+40;
-      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+0.4;
-    }if(Par->Par_Guess[1]>1100){
-      Par->Par[1] = Par->Par_Guess[1]+200+200*GASDEV(Mpi->idum);
-      Par->Par[5] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[5];
-      Par->Par[7] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[7];
-      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+Par->Par_Guess[9];
-    }else{
-      Par->Par[1] = Par->Par_Guess[1];
-      Par->Par[5] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[5];
-      Par->Par[7] = 5*GASDEV(Mpi->idum)+Par->Par_Guess[7];
-      Par->Par[9] = 0.1*GASDEV(Mpi->idum)+Par->Par_Guess[9];
+    Par->Par[8] = Par->Par_Best[8];
+    
+    if(Par->Chisq_Best < Input->Chisq_Criteria*1.5){
+
+      Par->Par[1] = Par->Par_Best[1]+300*GASDEV(Mpi->idum);
+      Par->Par[5] = Par->Par_Best[5]+0.2*GASDEV(Mpi->idum);
+      Par->Par[7] = Par->Par_Best[7]+10.*GASDEV(Mpi->idum);
+      Par->Par[9] = Par->Par_Best[9]+0.2*GASDEV(Mpi->idum);
+
+    }else if(Par->Par_Best[1]>1500 || Par->Par_Guess[1]>1500){ 
+
+      Par->Par[1] = Par->Par_Guess[1]+800*GASDEV(Mpi->idum);
+      Par->Par[5] = Par->Par_Guess[5]+0.2*GASDEV(Mpi->idum);
+      Par->Par[7] = Par->Par_Guess[7]+10*GASDEV(Mpi->idum);
+      Par->Par[9] = Par->Par_Guess[9]+0.2*GASDEV(Mpi->idum);
     }
     
-    Par->Par[8] = Par->Par_Best[8];
-
     while(Par->Par[3]<0){
       Par->Par[3] += Par_Pi;
     }
@@ -630,9 +629,9 @@ extern int LM_FIT(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PAR *Par, \
     int i = 0, j;
 
     for(i=0;i<Input->nline;i++){
-      Input->Lines[i].Par = Par->Par;
+      Input->Lines[i].Par = Par->Par; 
     }
-
+    
     Milne_Eddington(Input->Lines, Input->nline, Stk, Input->Fadd, Input, true);
 
     Chisq = Loss_Function(Stk);
@@ -749,7 +748,7 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       Purpose:
         ME inversion of Stokes profiles
       Record of revisions:
-        11 Apr. 2025 (Hao Li)
+        18 Apr. 2025 (Hao Li)
       Input parameters:
         Input, the input configuration.
         Stk, structure with the Stokes profiles
@@ -775,12 +774,12 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
       nrun = Input->nrun;
     }
 
-    for(i=0; i<nrun; i++){
+    for(i=0; i<nrun*2; i++){
       
       sprintf(MeSS, "\n ### inversion run: %d  \n", i);
       Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
       if(i > 0){ 
-        Random_Jump(Par, i, Mpi);
+        Random_Jump(Par, i, Mpi, Input);
         sprintf(MeSS, "\n  ramdom jumping: %d \n", i);
         Verbose(MeSS, Input->Verbose_Path, Input->verboselv<=1);
       }
@@ -796,8 +795,14 @@ extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
         sav_par(Par, Stk);
       }
 
+      if(i>=nrun){
+        if(Par->Chisq_Best<Input->Chisq_Criteria*2) break;
+      }
     }
 
+    if(Par->Par_Best[3]>Par_Pi){
+      Par->Par_Best[3] -= Par_Pi;
+    }
     if(Input->Azimuth_Rotate){
       Par->Par_Best[3] += 0.5*Par_Pi;
       if(Par->Par_Best[3]>Par_Pi) Par->Par_Best[3] -= Par_Pi;
