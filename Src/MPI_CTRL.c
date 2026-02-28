@@ -10,7 +10,7 @@
         27 Nov. 2024
           --- Updates:  a new subroutine Randomseeds to generate random 
                         seeds for mult-processor (Hao Li)
-                        a new subroutine Time_Print_Mpi to compute and 
+                        a new subroutine Timer_Mpi to compute and 
                         print the running time (Hao Li)
 
         27 Apr. 2024
@@ -146,13 +146,13 @@ extern int Randomseeds(STRUCT_MPI *Mpi){
 
 /*--------------------------------------------------------------------------------*/
 
-extern int Time_Print_Mpi(STRUCT_MPI *Mpi){
+extern int Timer_Mpi(STRUCT_MPI *Mpi){
     
 /*--------------------------------------------------------------------------------*/
 
     /*######################################################################
       Purpose:
-        compute and print the running time.
+        compute and display the execution time.
       Record of revisions:
         27 Nov. 2024 (Hao Li)
       Input parameters:
@@ -169,7 +169,7 @@ extern int Time_Print_Mpi(STRUCT_MPI *Mpi){
     if(conts == 0){
       time_begin = clock();
       if(Mpi->rank == 0){
-        fprintf(stderr, "\n Time Calculating Is Initialized \n");
+        fprintf(stderr, "\n Timer Initialized \n");
       }
       conts++;
         
@@ -185,16 +185,16 @@ extern int Time_Print_Mpi(STRUCT_MPI *Mpi){
           -hours*3600-minutes*60;
         
       if(Mpi->rank == 0){
-        fprintf(stderr, "\n Time Print Point %d \n",conts);
+        fprintf(stderr, "\n Timer Display %d \n",conts);
           
         if(hours > 0){
-          fprintf(stderr," Running time= %lu h %lu min %.2lf sec\n", \
+          fprintf(stderr," Execution time= %lu h %lu min %.2lf sec\n", \
               hours,minutes,seconds);
         }else if(minutes > 0){
-          fprintf(stderr," Running time= %lu min %.2lf sec\n", \
+          fprintf(stderr," Execution time= %lu min %.2lf sec\n", \
               minutes, seconds);
         }else{
-          fprintf(stderr," Running time= %.2lf sec\n", seconds);
+          fprintf(stderr," Execution time= %.2lf sec\n", seconds);
         }
       }
       conts++;

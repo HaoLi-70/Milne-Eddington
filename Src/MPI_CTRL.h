@@ -35,7 +35,7 @@ extern void ABORTED(void);
 
 extern int Randomseeds(STRUCT_MPI *Mpi);
 
-extern int Time_Print_Mpi(STRUCT_MPI *Mpi);
+extern int Timer_Mpi(STRUCT_MPI *Mpi);
 
 /*--------------------------------------------------------------------------------*/
 

@@ -10,7 +10,7 @@
 #include "LM_FIT.h"
 #include "READ_INPUT.h"
 #include "MPI_CTRL.h"
-#include "TIME_PRINT.h"
+#include "TIMER.h"
 #include "IO.h"
 #include "RANDOM_NUMBER.h"
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &(Mpi->rank));
     MPI_Comm_size(MPI_COMM_WORLD, &(Mpi->nprocs));
 
-    Time_Print_Mpi(Mpi);
+    Timer_Mpi(Mpi);
 
     STRUCT_INPUT *Input = (STRUCT_INPUT *)malloc(sizeof(STRUCT_INPUT));
 
@@ -627,7 +627,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    Time_Print_Mpi(Mpi);
+    Timer_Mpi(Mpi);
 
     if (Mpi->rank == 0){ 
       sprintf(MeSS, "\n -- inversion finished -- \n");

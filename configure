@@ -1,62 +1,142 @@
+#!/usr/bin/env bash
 
+set -euo pipefail
 
+########################################
 # Default values
-ccompiler="mpicc"
-prefix=$PWD
-lflags="-lcfitsio"
-iflags="-I/opt/homebrew/Cellar/cfitsio/4.4.1/include"
+########################################
 
-#iflags="-I/home/hao/libraries/cfitsio-4.5.0/include"
+prefix="$(pwd)"
+ccompiler=""
+cflags="-O2"
+lflags=""
+iflags=""
 
-cflags="-O1"
+enable_mpi=auto
+enable_openmp=auto
+
+########################################
+# OS detection
+########################################
+
+OS="$(uname -s)"
+
+echo "Detected OS: $OS"
+
+########################################
+# Argument parsing
+########################################
 
 for arg in "$@"; do
     case "$arg" in
-
-    --prefix=*)
-    prefix=`echo $arg | sed 's/--prefix=//'`
-	;;
-
-    --ccompiler=*)
-    ccompiler=`echo $arg | sed 's/--ccompiler=//'`
-	;;
-
-    --hard)
-    cflags="-O3"
-	;;
-
-
-    --debug)
-    cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic"
-	;;
-
-    --help)
-        echo 'usage: ./configure [options]'
-        echo 'options:'
-        echo '  --prefix=<path>         installation prefix [default = .]'
-        echo '  --ccompiler=[cc]        C compiler used [default = mpicc]'
-        echo '  @ Predefined families of compilation flags:'
-        echo '  --hard                  use aggressive optimization:'
-        echo '                             -O3'
-        echo '  --debug                  use safe optimization:'
-        echo '                             -g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic'
-        echo ' # Note: the lflags and -o are always included'
-        echo ''
-        exit 0
-        ;;
+        --prefix=*) prefix="${arg#*=}" ;;
+        --ccompiler=*) ccompiler="${arg#*=}" ;;
+        --enable-mpi) enable_mpi=yes ;;
+        --disable-mpi) enable_mpi=no ;;
+        --debug) cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic" ;;
+        --hard) cflags="-O3" ;;
+        --help)
+            echo "Usage: ./configure [options]"
+            exit 0 ;;
+        *)
+            echo "Unknown option: $arg"
+            exit 1 ;;
     esac
 done
 
-echo 'generating makefile ...' 
-if [ "${prefix: -1}" != "/" ]; then
-  prefix="$prefix/"
+########################################
+# Compiler selection
+########################################
+
+if [ -z "$ccompiler" ]; then
+    if command -v mpicc >/dev/null 2>&1; then
+        ccompiler="mpicc"
+    elif command -v gcc >/dev/null 2>&1; then
+        ccompiler="gcc"
+    elif command -v clang >/dev/null 2>&1; then
+        ccompiler="clang"
+    else
+        echo "ERROR: No C compiler found."
+        exit 1
+    fi
 fi
-echo "PREFIX = $prefix" > Makefile
-echo "CMP = $ccompiler" >> Makefile
-echo "CFLAGS = -c $cflags -o" >> Makefile
-echo "LFLAGS = $lflags" >> Makefile
-echo "IFLAGS = $iflags" >> Makefile
+
+echo "Using compiler: $ccompiler"
 
 
-cat Src/makefile.in >> Makefile
-echo 'configuration complete, type make to build.'
+########################################
+# CFITSIO detection
+########################################
+
+echo "Checking CFITSIO..."
+
+if pkg-config --exists cfitsio 2>/dev/null; then
+    echo "CFITSIO found via pkg-config"
+    iflags="$(pkg-config --cflags cfitsio)"
+    lflags="$lflags $(pkg-config --libs cfitsio)"
+
+else
+    # macOS Homebrew
+    if [ "$OS" = "Darwin" ] && brew --prefix cfitsio >/dev/null 2>&1; then
+        CFITSIO_PREFIX=$(brew --prefix cfitsio)
+        echo "Using Homebrew CFITSIO"
+        iflags="-I$CFITSIO_PREFIX/include"
+        lflags="$lflags -L$CFITSIO_PREFIX/lib -lcfitsio"
+
+    else
+        echo "Trying manual link test..."
+        tmpfile=$(mktemp "${TMPDIR:-/tmp}/conftestXXXXXX.c")
+
+        cat << EOF > "$tmpfile"
+#include <fitsio.h>
+int main(){ return 0; }
+EOF
+
+        if "$ccompiler" "$tmpfile" -lcfitsio -o /dev/null >/dev/null 2>&1; then
+            echo "CFITSIO found via -lcfitsio"
+            lflags="$lflags -lcfitsio"
+        else
+            echo "ERROR: CFITSIO not found."
+            exit 1
+        fi
+
+        rm -f "$tmpfile"
+    fi
+fi
+
+########################################
+# Ensure prefix trailing slash
+########################################
+
+case "$prefix" in
+    */) ;;
+    *) prefix="$prefix/";;
+esac
+
+########################################
+# Generate Makefile
+########################################
+
+echo "Generating Makefile..."
+
+tmpfile=$(mktemp)
+
+{
+    echo "PREFIX = $prefix"
+    echo "CMP = $ccompiler"
+    echo "CFLAGS = -c $cflags "
+    echo "LFLAGS = $lflags"
+    echo "IFLAGS = $iflags"
+    cat Src/makefile.in
+} > "$tmpfile"
+
+mv "$tmpfile" Makefile
+
+echo ""
+echo "Configuration summary:"
+echo "  OS:        $OS"
+echo "  Compiler:  $ccompiler"
+echo "  MPI:       auto"
+echo "  CFITSIO:   detected"
+echo ""
+echo "Run 'make' to build."

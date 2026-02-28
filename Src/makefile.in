@@ -1,22 +1,69 @@
+#------------------------------------------------------------#
+# Directory structure
+#------------------------------------------------------------#
 
+src_dir := Src
+obj_dir := Objs
+bin_dir := .
 
+TARGET  := MEINV
 
-src_dir=Src/
-obj_dir=Objs/
+#------------------------------------------------------------#
+# Automatically detect sources
+#------------------------------------------------------------#
 
-all: MEINV
+SRC  := $(wildcard $(src_dir)/*.c)
+OBJS := $(patsubst $(src_dir)/%.c,$(obj_dir)/%.o,$(SRC))
+DEPS := $(OBJS:.o=.d)
 
-SRC := $(wildcard $(src_dir)*.c)
-OBJS := $(SRC:$(src_dir)%.c=$(obj_dir)%.o)
+#------------------------------------------------------------#
+# Default target
+#------------------------------------------------------------#
 
-$(obj_dir)%.o: $(src_dir)%.c
-	$(CMP) $(CFLAGS) $@ $< $(IFLAGS)
+all: $(TARGET)
 
-MEINV: $(OBJS)
-	$(CMP) -o MEINV $(OBJS) -L. $(LFLAGS)  -lm
+#------------------------------------------------------------#
+# Build rules
+#------------------------------------------------------------#
 
-.PHONY:clean
+# Ensure object directory exists
+$(obj_dir):
+	mkdir -p $(obj_dir)
+
+# Compile with dependency generation
+$(obj_dir)/%.o: $(src_dir)/%.c | $(obj_dir)
+	$(CMP) $(CFLAGS) -MMD -MP -o $@ $< $(IFLAGS)
+
+#------------------------------------------------------------#
+# Link
+#------------------------------------------------------------#
+
+$(TARGET): $(OBJS)
+	$(CMP) -o $@ $(OBJS) $(LFLAGS) -lm
+
+#------------------------------------------------------------#
+# Install
+#------------------------------------------------------------#
+
+install: $(TARGET)
+	mkdir -p $(PREFIX)/bin
+	cp $(TARGET) $(PREFIX)/bin/
+
+#------------------------------------------------------------#
+# Clean
+#------------------------------------------------------------#
 
 clean:
-	find . -maxdepth 2 -name "*.o" -delete 
-	find . -maxdepth 2 -name "MEINV" -delete 
+	rm -rf $(obj_dir)/*.o $(obj_dir)/*.d $(TARGET)
+
+#------------------------------------------------------------#
+# Include dependency files
+#------------------------------------------------------------#
+
+-include $(DEPS)
+
+#------------------------------------------------------------#
+# Phony targets
+#------------------------------------------------------------#
+
+.PHONY: all clean install

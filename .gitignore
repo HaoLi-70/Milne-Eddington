@@ -1,9 +1,9 @@
-/data-user/[^.]*
-/*.DS_Store
-/*/.DS_Store
-/*/*/.DS_Store
+/data-user/*
+**/.DS_Store
 /Makefile
-/MEINVERSION
 /MEINV
-/Src/*.o
-/Objs/*.o
+**/.o
+**/.d
+**/verbose*
+/Objs/
+/bin/
