@@ -19,7 +19,7 @@
 ## Requirements
 
 - C/C++ compiler
-- [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) library (for FITS file input/output)
+- [CFITSIO](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/) library (for FITS file input/output)
 - MPI library (for parallel execution)
 - Make / GNU Make
 
