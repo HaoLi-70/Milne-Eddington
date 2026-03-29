@@ -1,6 +1,7 @@
 /data-user/*
 **/.DS_Store
-**/*.fits
+examples/*/*.fits
+data-user/*/*fits
 **/cache
 **/log_*
 /Makefile
