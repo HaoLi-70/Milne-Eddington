@@ -1,41 +1,44 @@
 
-#ifndef STR_h
-#define STR_h
+#pragma once
 
 /*--------------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdbool.h>
 
 /*--------------------------------------------------------------------------------*/
 
-#define Key_Length 50
-#define Max_Line_Length 300
-
-extern int Check_Char(char *str, char c);
-
-extern int Indx_Char(char *str, char c, int order);
-
-extern int Indx_Space(char *str, int order);
-
-extern void Trim1(char *str);
-
-extern void Trim2(char *str);
-
-extern void Trim(char *str, int indx);
-
-extern void String_Copy(char *str1, char *str2, long len, bool trim_flag);
-
-extern int String_Split(char *str1, char *str2);
-
-extern void String_to_Upper(char *str);
-
-extern int String_elements(char *str);
-
-extern int Read_line(char *lines, FILE *fa);
+#define Key_Length 64
+#define Max_Line_Length 512
 
 /*--------------------------------------------------------------------------------*/
 
-#endif /* STR_h */
+extern int STR_COUNT_CHAR(const char *str, const char c);
+
+extern int STR_INDEX_CHAR(const char *str, const char c, int order);
+
+extern int STR_INDEX_SPACE(const char *str, int order);
+
+extern int STR_TRIM_LEFT(char *str);
+
+extern int STR_TRIM_RIGHT(char *str);
+
+extern int STR_TRIM(char *str);
+
+extern void STR_COPY(char *dest, size_t destsize, const char *src, \
+    size_t srcsize, bool trim_flag);
+
+extern int STR_SPLIT(char *dest, size_t destsize, char *src);
+
+extern void STR_TOUPPER(char *str);
+
+extern int STR_ELEMENTS(char *str);
+
+extern int STR_READ_LINE(char **line, size_t *size, FILE *fa);
+
+/*--------------------------------------------------------------------------------*/
+
+

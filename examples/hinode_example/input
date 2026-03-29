@@ -1,0 +1,31 @@
+
+verbose = 0
+
+num_run = 4
+
+lines =  6302.4932,  2.5
+
+
+data_path = ../../data-user/hinode/hinodedata_inv.fits
+
+wavelength_path = ../../data-user/hinode/hinodewavelength.fits
+
+weights = 1, 5, 5, 3.5
+
+
+sol_box = -1, -1, -1, -1
+!sol_box = 0, 100, 0, 5
+
+
+#Btheta_Regularization = Yes, 0.5, 1e-3
+#Dopp_Regularization = YES, 25, 1e-3
+#Damp_Regularization = YES, 0.5, 100
+#Eta_Regularization =  YES, 2.0, 2e-3
+
+output_fit = Yes
+
+chisq_criteria = 1
+
+
+#fast_mode = yes
+#nprofiles = 1

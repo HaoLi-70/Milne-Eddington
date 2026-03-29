@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-########################################
+#*--------------------------------------------------------------------------------*#
 # Default values
-########################################
+#*--------------------------------------------------------------------------------*#
 
 prefix="$(pwd)"
 ccompiler=""
@@ -15,17 +15,25 @@ iflags=""
 enable_mpi=auto
 enable_openmp=auto
 
-########################################
+#*--------------------------------------------------------------------------------*#
 # OS detection
-########################################
+#*--------------------------------------------------------------------------------*#
 
 OS="$(uname -s)"
 
 echo "Detected OS: $OS"
 
-########################################
+#*--------------------------------------------------------------------------------*#
 # Argument parsing
-########################################
+#*--------------------------------------------------------------------------------*#
+
+prefix="."
+ccompiler="mpicc"
+enable_mpi=yes
+enable_openmp=no
+enable_debug=no
+enable_gsl=no
+enable_openblas=no
 
 for arg in "$@"; do
     case "$arg" in
@@ -33,28 +41,73 @@ for arg in "$@"; do
         --ccompiler=*) ccompiler="${arg#*=}" ;;
         --enable-mpi) enable_mpi=yes ;;
         --disable-mpi) enable_mpi=no ;;
-        --debug) cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds -pedantic" ;;
+        --enable-openmp) enable_openmp=yes ;;
+        --disable-openmp) enable_openmp=no ;;
+        --enable-gsl) enable_gsl=yes ;;
+        --disable-gsl) enable_gsl=no ;;
+        --enable-openblas) enable_openblas=yes ;;
+        --disable-openblas) enable_openblas=no ;;
+        --debug) 
+	    enable_debug=yes
+	    cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds 
+		-pedantic -DDEBUG" ;;
         --hard) cflags="-O3" ;;
         --help)
             echo "Usage: ./configure [options]"
-            exit 0 ;;
+            echo "options:"
+            echo "  --prefix=<path>         installation prefix [default = .]"
+            echo "  --ccompiler=[cc]        C compiler used [default = mpicc]"
+            echo "  @ Predefined families of compilation flags:"
+            echo "  --hard                  use aggressive optimization:"
+            echo "                             -O3"
+            echo "  --debug                  use safe optimization:"
+            echo "                             -g -O1 -Wall -Wshadow -Wextra 
+		-Warray-bounds -pedantic -DDEBUG"
+            echo " # Note: the lflags and -o are always included"
+            echo ""
+            exit 0;;
         *)
             echo "Unknown option: $arg"
             exit 1 ;;
     esac
 done
 
-########################################
-# Compiler selection
-########################################
 
-if [ -z "$ccompiler" ]; then
+#*--------------------------------------------------------------------------------*#
+# add flag function
+#*--------------------------------------------------------------------------------*#
+
+add_flag_once() {
+    case " $1 " in
+        *" $2 "* ) echo "$1" ;;   
+        * ) echo "$1 $2" ;;      
+    esac
+}
+
+#*--------------------------------------------------------------------------------*#
+# Compiler selection
+#*--------------------------------------------------------------------------------*#
+
+if [ "$enable_mpi" != "no" ]; then
+    if ! command -v mpicc >/dev/null 2>&1; then
+        echo "ERROR: MPI enabled but mpicc not found."
+        exit 1
+    fi
+
+    ccompiler="mpicc"
+    cflags=$(add_flag_once "$cflags" "-DUSE_MPI")
+
+elif [ -z "$ccompiler" ]; then
     if command -v mpicc >/dev/null 2>&1; then
         ccompiler="mpicc"
+	cflags=$(add_flag_once "$cflags" "-DUSE_MPI")
+
     elif command -v gcc >/dev/null 2>&1; then
         ccompiler="gcc"
+
     elif command -v clang >/dev/null 2>&1; then
         ccompiler="clang"
+
     else
         echo "ERROR: No C compiler found."
         exit 1
@@ -64,58 +117,237 @@ fi
 echo "Using compiler: $ccompiler"
 
 
-########################################
+#*--------------------------------------------------------------------------------*#
 # CFITSIO detection
-########################################
+#*--------------------------------------------------------------------------------*#
 
 echo "Checking CFITSIO..."
 
-if pkg-config --exists cfitsio 2>/dev/null; then
-    echo "CFITSIO found via pkg-config"
-    iflags="$(pkg-config --cflags cfitsio)"
-    lflags="$lflags $(pkg-config --libs cfitsio)"
-
+if mktemp --help 2>&1 | grep -q -- '--suffix'; then
+    tmpfile=$(mktemp --suffix=.c)
 else
-    # macOS Homebrew
-    if [ "$OS" = "Darwin" ] && brew --prefix cfitsio >/dev/null 2>&1; then
-        CFITSIO_PREFIX=$(brew --prefix cfitsio)
-        echo "Using Homebrew CFITSIO"
-        iflags="-I$CFITSIO_PREFIX/include"
-        lflags="$lflags -L$CFITSIO_PREFIX/lib -lcfitsio"
+    tmp=$(mktemp /tmp/tmpfile.XXXXXX)
+    tmpfile="${tmp}.c"
+fi
 
-    else
-        echo "Trying manual link test..."
-        tmpfile=$(mktemp "${TMPDIR:-/tmp}/conftestXXXXXX.c")
-
-        cat << EOF > "$tmpfile"
+cat << EOF > "$tmpfile"
 #include <fitsio.h>
 int main(){ return 0; }
 EOF
 
-        if "$ccompiler" "$tmpfile" -lcfitsio -o /dev/null >/dev/null 2>&1; then
-            echo "CFITSIO found via -lcfitsio"
-            lflags="$lflags -lcfitsio"
-        else
-            echo "ERROR: CFITSIO not found."
-            exit 1
-        fi
+if "$ccompiler" "$tmpfile" -lcfitsio -o /dev/null >/dev/null 2>&1; then
+    echo "CFITSIO found via -lcfitsio"
+    lflags=$(add_flag_once "$lflags" "-lcfitsio")
 
-        rm -f "$tmpfile"
-    fi
+elif [ "$OS" = "Darwin" ] && brew --prefix cfitsio >/dev/null 2>&1; then
+    CFITSIO_PREFIX=$(brew --prefix cfitsio)
+    echo "Using Homebrew CFITSIO"
+    iflags=$(add_flag_once "$iflags" "-I$CFITSIO_PREFIX/include")
+    lflags=$(add_flag_once "$lflags" "-L$CFITSIO_PREFIX/lib")
+    lflags=$(add_flag_once "$lflags" "-lcfitsio")
+
+elif [ "$OS" = "Linux" ] && pkg-config --exists cfitsio 2>/dev/null; then
+    echo "CFITSIO found via pkg-config"
+
+    for flag in $(pkg-config --cflags cfitsio); do
+        iflags=$(add_flag_once "$iflags" "$flag")
+    done
+
+    for flag in $(pkg-config --libs cfitsio); do
+        lflags=$(add_flag_once "$lflags" "$flag")
+    done
+
+else
+    echo "ERROR: CFITSIO not found."
+    rm -f "$tmpfile"
+    exit 1
 fi
 
-########################################
+rm -f "$tmpfile"
+
+#*--------------------------------------------------------------------------------*#
+# OPENMP detection
+#*--------------------------------------------------------------------------------*#
+
+if [ "$enable_openmp" != "no" ]; then
+    echo "Checking OpenMP..."
+    if mktemp --help 2>&1 | grep -q -- '--suffix'; then
+        tmpfile=$(mktemp --suffix=.c)
+    else
+        tmp=$(mktemp /tmp/tmpfile.XXXXXX)
+    	tmpfile="${tmp}.c"
+    fi
+
+    cat << EOF > "$tmpfile"
+#include <omp.h>
+int main() {
+    #pragma omp parallel 
+    {
+    }
+    return 0;
+}
+EOF
+
+    if "$ccompiler" -fopenmp "$tmpfile" -o /dev/null >/dev/null 2>&1; then
+        echo "OpenMP supported via -fopenmp"
+
+	cflags=$(add_flag_once "$cflags" "-DUSE_OPENMP")
+	cflags=$(add_flag_once "$cflags" "-fopenmp")
+	lflags=$(add_flag_once "$lflags" "-fopenmp")
+
+    elif [ "$OS" = "Darwin" ] && brew --prefix libomp >/dev/null 2>&1; then
+        OMP_PREFIX=$(brew --prefix libomp)
+        echo "Using Homebrew libomp"
+
+	cflags=$(add_flag_once "$cflags" "-DUSE_OPENMP")
+	cflags=$(add_flag_once "$cflags" "-Xpreprocessor")
+	cflags=$(add_flag_once "$cflags" "-fopenmp")
+	iflags=$(add_flag_once "$iflags" "-I$OMP_PREFIX/include")
+	lflags=$(add_flag_once "$lflags" "-L$OMP_PREFIX/lib")
+	lflags=$(add_flag_once "$lflags" "-lomp")
+
+    else
+        echo "OpenMP not supported."
+    fi
+
+    rm -f "$tmpfile"
+fi
+
+#*--------------------------------------------------------------------------------*#
+# GSL detection
+#*--------------------------------------------------------------------------------*#
+
+if [ "$enable_gsl" != "no" ]; then
+    echo "Checking GSL..."
+
+    if mktemp --help 2>&1 | grep -q -- '--suffix'; then
+        tmpfile=$(mktemp --suffix=.c)
+    else
+        tmp=$(mktemp /tmp/tmpfile.XXXXXX)
+        tmpfile="${tmp}.c"
+    fi
+
+    cat << EOF > "$tmpfile"
+#include <gsl/gsl_sf_dawson.h>
+int main() {
+    double x = gsl_sf_dawson(1.0);
+    return (x > 0);
+}
+EOF
+
+    if "$ccompiler" "$tmpfile" $iflags $lflags -lgsl -lgslcblas -o /dev/null >/dev/null 2>&1; then
+        echo "GSL supported via -lgsl -lgslcblas"
+        cflags=$(add_flag_once "$cflags" "-DUSE_GSL")
+        lflags=$(add_flag_once "$lflags" "-lgsl")
+        lflags=$(add_flag_once "$lflags" "-lgslcblas")
+
+    elif [ "$OS" = "Darwin" ] && brew --prefix gsl >/dev/null 2>&1; then
+        GSL_PREFIX=$(brew --prefix gsl)
+        echo "Using Homebrew GSL"
+
+        cflags=$(add_flag_once "$cflags" "-DUSE_GSL")
+
+        iflags=$(add_flag_once "$iflags" "-I$GSL_PREFIX/include")
+        lflags=$(add_flag_once "$lflags" "-L$GSL_PREFIX/lib")
+        lflags=$(add_flag_once "$lflags" "-lgsl")
+        lflags=$(add_flag_once "$lflags" "-lgslcblas")
+
+    elif [ "$OS" = "Linux" ] && pkg-config --exists gsl 2>/dev/null; then
+        echo "GSL found via pkg-config"
+
+        for flag in $(pkg-config --cflags gsl); do
+            iflags=$(add_flag_once "$iflags" "$flag")
+        done
+
+        for flag in $(pkg-config --libs gsl); do
+            lflags=$(add_flag_once "$lflags" "$flag")
+        done
+
+        cflags=$(add_flag_once "$cflags" "-DUSE_GSL")
+
+    else
+        enable_gsl=no
+        echo "GSL not supported."
+    fi
+
+    rm -f "$tmpfile"
+fi
+
+
+#*--------------------------------------------------------------------------------*#
+# OPENBLAS detection
+#*--------------------------------------------------------------------------------*#
+
+if [ "$enable_openblas" != "no" ]; then
+    echo "Checking OPENBLAS..."
+    if mktemp --help 2>&1 | grep -q -- '--suffix'; then
+        tmpfile=$(mktemp --suffix=.c)
+    else
+        tmp=$(mktemp /tmp/tmpfile.XXXXXX)
+    	tmpfile="${tmp}.c"
+    fi
+
+    cat << EOF > "$tmpfile"
+#include <lapacke.h>
+int main() { 
+    return 0; 
+}
+EOF
+
+    if "$ccompiler" "$tmpfile" $iflags $lflags -lopenblas -o \
+	/dev/null >/dev/null 2>&1; then
+
+        echo "OPENBLAS supported via -lopenblas"
+        cflags=$(add_flag_once "$cflags" "-DUSE_LAPACKE")
+        lflags=$(add_flag_once "$lflags" "-lopenblas")
+
+    # macOS Homebrew 
+    elif [ "$OS" = "Darwin" ] &&brew --prefix openblas >/dev/null 2>&1; then
+        OPENBLAS_PREFIX=$(brew --prefix openblas)
+        echo "Using Homebrew OPENBLAS"
+
+   	cflags=$(add_flag_once "$cflags" "-DUSE_LAPACKE")
+	iflags=$(add_flag_once "$iflags" "-I$OPENBLAS_PREFIX/include")
+	lflags=$(add_flag_once "$lflags" "-L$OPENBLAS_PREFIX/lib")
+	lflags=$(add_flag_once "$lflags" "-lopenblas")
+
+
+    # Linux pkg-config 
+    elif [ "$OS" = "Linux" ] && pkg-config --exists openblas 2>/dev/null; then
+            echo "OPENBLAS found via pkg-config"
+
+        for flag in $(pkg-config --cflags openblas); do
+            iflags=$(add_flag_once "$iflags" "$flag")
+        done
+
+        for flag in $(pkg-config --libs openblas); do
+            lflags=$(add_flag_once "$lflags" "$flag")
+        done
+
+        cflags=$(add_flag_once "$cflags" "-DUSE_LAPACKE")
+ 
+
+    else
+	enable_openblas=no
+        echo "OPENBLAS not supported."
+    fi
+
+    rm -f "$tmpfile"
+fi
+
+
+#*--------------------------------------------------------------------------------*#
 # Ensure prefix trailing slash
-########################################
+#*--------------------------------------------------------------------------------*#
 
 case "$prefix" in
     */) ;;
     *) prefix="$prefix/";;
 esac
 
-########################################
+#*--------------------------------------------------------------------------------*#
 # Generate Makefile
-########################################
+#*--------------------------------------------------------------------------------*#
 
 echo "Generating Makefile..."
 
@@ -136,7 +368,22 @@ echo ""
 echo "Configuration summary:"
 echo "  OS:        $OS"
 echo "  Compiler:  $ccompiler"
-echo "  MPI:       auto"
+if [ "$enable_mpi" != "no" ]; then
+    echo "  MPI:       yes"
+else
+    echo "  MPI:       disable"
+fi
 echo "  CFITSIO:   detected"
+echo ""
+if [ "$enable_gsl" != "no" ]; then
+    echo "  GSL:       yes"
+else
+    echo "  GSL:       disable"
+fi
+if [ "$enable_openblas" != "no" ]; then
+    echo "  OPENBLAS:  yes"
+else
+    echo "  OPENBLAS:  disable"
+fi
 echo ""
 echo "Run 'make' to build."

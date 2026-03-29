@@ -1,0 +1,39 @@
+verbose = 0
+
+num_run = 6
+
+lines =  15648.5,  3.0
+
+data_path = ../../data-user/GST/niris_example.fits
+
+wavelength_path = ../../data-user/GST/niriswavelength.fits
+
+
+weights = 1, 8, 8, 12
+
+Bounds_Dopp = 50, 140
+Bounds_Damp = 0.4, 1.1
+Bounds_Beta = 0.6, 0.9
+
+#Bphi_fixed = No 
+#Btheta_Regularization = Yes, 0.5, 1
+#Dopp_Regularization = YES, 50, 1e-3
+#Damp_Regularization = YES, 0.5, 10
+#Eta_Regularization =  YES, 10.0, 2e-3
+
+output_fit = No
+
+chisq_criteria = 1
+
+
+LCoeffi = 350
+VCoeffi = 500
+
+sol_box = -1, -1, -1, -1
+#sol_box =  101, 101, 103, 103
+#sol_box =  191, 191, 137, 137
+#sol_box =  190, 190, 44, 44
+#sol_box = 20, 20, 20, 20
+
+nprofiles = 10
+

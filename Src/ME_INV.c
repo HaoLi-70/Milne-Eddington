@@ -1,645 +1,276 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <stdbool.h>
-#include <unistd.h>
+#include <time.h>
+#include <stdlib.h>
+
+#ifdef USE_OPEMP
+#include <omp.h>
+#endif
+
+#ifdef USE_MPI
 #include <mpi.h>
-#include <fitsio.h>
+#endif
+
 #include "ALLOCATION.h"
-#include "MILNE_EDDINGTON.h"
-#include "LM_FIT.h"
-#include "READ_INPUT.h"
-#include "MPI_CTRL.h"
-#include "TIMER.h"
+#include "FADDEEVA.h"
+#include "INV_INIT.h"
 #include "IO.h"
+#include "LM_FIT.h"
+#include "LOG_ERROR.h"
+#include "ME_SOLVER.h"
+#include "MPI_INIT.h"
 #include "RANDOM_NUMBER.h"
+#include "RINPUT.h"
+#include "STR.h"
+#include "SVD.h"
+#include "TIMER.h"
+#include "FREE_RAM.h"
 
-/*--------------------------------------------------------------------------------*/
+#if defined(USE_MPI) && defined(USE_OPEMP)
+    #define PARALLEL_MPIOPENMP
+#elif defined(USE_MPI)
+    #define PARALLEL_MPI
+#elif defined(USE_OPEMP)
+    #define PARALLEL_OPENMP
+#else
+    #define PARALLEL_NONE
+#endif
 
-    /*######################################################################
-     
-      revision log:
-
-        27 Nov. 2024
-          --- Updates:  a new subroutine to generate random seeds for 
-                        mult-processor (Hao Li)
-                        fast mode of the inversion (Hao Li)
-
-        28 Jun. 2024
-          --- Initial commit (Hao Li)
-     
-     ######################################################################*/
-
-/*--------------------------------------------------------------------------------*/
+#define TAG_NPROF 1000
+#define TAG_COORD 1001
+#define TAG_DATA  1002
+#define TAG_R_NPROF 2000
+#define TAG_R_COORD 2001
+#define TAG_R_DATA  2002
 
 #define Input_Path "./input"
 
 /*--------------------------------------------------------------------------------*/
 
 int main(int argc, char *argv[]) {
-  
-/*--------------------------------------------------------------------------------*/
 
-    /*######################################################################
-      Purpose:
-        Stokes inversion (Milne-Eddington).
-    ######################################################################*/
-
-/*--------------------------------------------------------------------------------*/
-
+#if defined(PARALLEL_MPIOPENMP)
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    if(provided < MPI_THREAD_FUNNELED){
+      LOG_ERROR(ERR_LVL_ERROR, "main", \
+          "Error: MPI does not provide required thread support\n");
+    }
+#elif defined(PARALLEL_MPI)
     MPI_Init(&argc, &argv);
-    STRUCT_MPI *Mpi = (STRUCT_MPI *)malloc(sizeof(STRUCT_MPI));
+#endif
+
+#ifdef PARALLEL_MPI
     MPI_Status status;
+#endif 
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &(Mpi->rank));
-    MPI_Comm_size(MPI_COMM_WORLD, &(Mpi->nprocs));
+    STRUCT_MPI Mpi = {0};
+    MPI_SETUP(&Mpi);
+    Timer(&Mpi);
+    const char *Filename = (argc>=2) ? argv[1] : Input_Path;
 
-    Timer_Mpi(Mpi);
-
-    STRUCT_INPUT *Input = (STRUCT_INPUT *)malloc(sizeof(STRUCT_INPUT));
-
-    char *Filename = Input_Path;
-    if(argc>=2){
-      Filename = argv[1];
+    if(!FILE_EXIST(Filename) && Mpi.rank==0){
+      LOG_ERROR(ERR_LVL_ERROR, "main", "input doesn't exist! \n");
     }
 
-    if(!FILE_EXIST(Filename)){
-      free(Input);
-      if (Mpi->rank == 0){
-        Error(enum_error, "main", "input doesn't exist! \n", NULL);
-      }else{
-        ABORTED();
-      }
-    }
+    STRUCT_INPUT Input = {0};
+    STRUCT_STK Stk = {0};
+    STRUCT_LM LM = {0}; 
+    STRUCT_PARA Para = {0};
+    STRUCT_SUBSET Subset = {0};
+    STRUCT_SUBSET SubsetRV = {0};
 
-    Mrank = Mpi->rank;
-    Mnprocs = Mpi->nprocs;
-    int *cpu_busy = (int *)VECTOR(1, Mpi->nprocs-1, enum_int, true);
+    RDINPUT(Filename, &Input, &Mpi);
 
-    STRUCT_PAR *Par = (STRUCT_PAR *)malloc(sizeof(STRUCT_PAR));
-    STRUCT_STK *Stk = (STRUCT_STK *)malloc(sizeof(STRUCT_STK));
-    STRUCT_LM *LM = (STRUCT_LM *)malloc(sizeof(STRUCT_LM));
+    OPENMP_SETUP(&Mpi);
+    rWavelength(&Input, &Stk, &Mpi);
+    INIT_INV(&Input, &Stk, &LM, &Para, &Mpi, &Subset);
 
-    // read the input configuration.
-    RDINPUT(Filename, Input, Stk, LM, Par, Mpi);
+    int rcounts = 0, pid, src, terminal = -1, icache = 0;
+    int valid = 0, actived = 1;
+    double *ptr = NULL, *ptrRV = NULL;
 
-    // read the wavelength points. 
-    rWavelength(Input, Stk, Mpi);
+    CACHE_INIT(&Input, &Mpi, &Stk);
 
-    long fpixel[4], naxes[4];
-    int coord[2], coordr[2], ipid, scounts = 0, rcounts = 0, ecounts = 0;
-    int i, ix, iy, receiving, stat = 0, naxis, iw, ipar;
-    double Imean, ***res;
-    float **profall;
-    char filename[Max_Line_Length+1];
+    if(Mpi.rank == 0) LOG_WRITE("\n\n  --- start iversion ---  \n\n", \
+        true, Input.verboselv>=2); 
+    Subset.pcounts = 0;
+    if(Mpi.size==1){
+      if(Input.fastmode){
+        rProfilesll(&Input, &Stk);
+        INVERSION_MULTI(&Input, &Stk, &Para, &LM, &Subset);
 
-    Randomseeds(Mpi);
-
-    if(Input->fastmode){
-
-      Input->nxcache = 1+Input->sol_box[0][1]-Input->sol_box[0][0];
-      Input->nycache = 1+Input->sol_box[1][1]-Input->sol_box[1][0];
-      Input->counts = Input->nxcache*Input->nycache;
-
-      if(Mpi->rank==0){
-        Stk->profall = (float ***)TENSOR_FLT(0, Input->ny-1, \
-              0, Input->nx-1, 0, 4*Stk->nl-1, false);
-
-        rprofileall(Input, Stk);
-
-        res = (double ***)TENSOR_DBL(0, Input->nycache-1, \
-                0, Input->nxcache-1, 0, 9, true);
-      }else{
-
-        profall = (float **)MATRIX(0, 3, 0, Stk->nl-1, enum_flt, false);
-
-      }
-
-      if(Mpi->nprocs>1){
-
-        if(Mpi->rank==0){
-
-          coord[0] = Input->sol_box[0][0];
-          coord[1] = Input->sol_box[1][0];
-          while(true){
-
-            /* if aborting */
-            //if(true){
-
-
-            //}
-
-            /* code */
-            // if there are pixel left and free CPU and 
-            ipid = cpu_check(cpu_busy, Mpi->nprocs);
-      
-            if(scounts<Input->counts && ipid>0){
-
-              ix = coord[0]-Input->sol_box[0][0];
-              iy = coord[1]-Input->sol_box[1][0];
-
-              Imean = 0.0;
-              for(iw=0;iw<Stk->nl;iw++){
-                Imean += Stk->profall[coord[1]][coord[0]][iw];
-              }
-              Imean /= Stk->nl;
-
-              // if on disk
-              if(Imean>Input->Icriteria){
-                // send the coordinates
-                MPI_Send(coord, 2, MPI_INT, ipid, 1000+ipid, MPI_COMM_WORLD);
-
-                // send the data
-                MPI_Send(Stk->profall[coord[1]][coord[0]], Stk->nl*4, \
-                    MPI_FLOAT, ipid, 1000+ipid, MPI_COMM_WORLD);
-
-                // That CPU is now busy
-                cpu_busy[ipid] = 1;
-
-              // if off limb
-              }else{
-
-                rcounts++;
-
-              }
+        WRITE_RESULT(&Input, &Subset, &Stk);
         
-              // move to the next pixel
-              if(coord[0]>=Input->sol_box[0][1]){
-                coord[0] = Input->sol_box[0][0];
-                coord[1]++;
-              }else{
-                coord[0]++;
-              }
-
-              scounts++;
-
-            }
-
-            for (ipid = 1; ipid < Mpi->nprocs; ipid++){
-
-              //Test for a message from the slave
-              MPI_Iprobe(ipid, 2000+ipid, MPI_COMM_WORLD, &receiving, \
-                  &status);
-              if(!receiving) continue;
-
-              // recieve the coordinates
-              MPI_Recv(coordr, 2, MPI_INT, ipid, 2000+ipid, MPI_COMM_WORLD, \
-                  &status);
-
-              // coordiante of the result array
-              coordr[0] = coordr[0]-Input->sol_box[0][0];
-              coordr[1] = coordr[1]-Input->sol_box[1][0];
-
-              // recieve the result
-              MPI_Recv(res[coordr[1]][coordr[0]], 9, MPI_DOUBLE, ipid, \
-                  2000+ipid, MPI_COMM_WORLD, &status);
-
-              MPI_Recv(res[coordr[1]][coordr[0]]+9, 1, MPI_DOUBLE, ipid, \
-                  2000+ipid, MPI_COMM_WORLD, &status);
-
-              rcounts++;
-              // the cpu is free
-              cpu_busy[ipid] = 0;
-            }
-
-            if(rcounts>=Input->counts) break;
-
-          }
-        
-          coord[0] = -1;
-          for (ipid = 1; ipid < Mpi->nprocs; ipid++){
-            // notice the slave
-            MPI_Send(coord, 2, MPI_INT, ipid, 1000+ipid, MPI_COMM_WORLD);
-          }
-
-          sprintf(filename, "!%s",Input->Result_Path);
-          fits_create_file(&(Input->fptr_res), filename, &stat);
-
-          naxis = 3;
-          naxes[0] = 10;
-          naxes[1] = Input->nxcache;
-          naxes[2] = Input->nycache;
-
-          fits_create_img(Input->fptr_res, DOUBLE_IMG, naxis, naxes, &stat);
-
-          //write results
-          fits_open_file(&(Input->fptr_res), Input->Result_Path,\
-              READWRITE, &stat);
-
-          fpixel[0] = 1;
-          fpixel[1] = 1;
-          fpixel[2] = 1;
-              
-          fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, \
-              10*Input->nxcache*Input->nycache, res[0][0], &stat);;
-              
-          fits_close_file(Input->fptr_res, &stat);
-
-
-        }else{
-
-          while(true){
-            // recieve the integers
-            MPI_Recv(coord, 2, MPI_INT, 0, 1000+Mpi->rank, MPI_COMM_WORLD, \
-                &status);
-            // break if no data
-            if(coord[0]<0) break;
-
-            // recieve the data
-            MPI_Recv(profall[0], Stk->nl*4, MPI_FLOAT, 0, 1000+Mpi->rank,\
-                MPI_COMM_WORLD, &status); 
-            
-            for(iw=0;iw<Stk->nl;iw++){
-              Stk->prof[0][iw] = profall[0][iw];
-              Stk->prof[1][iw] = profall[1][iw];
-              Stk->prof[2][iw] = profall[2][iw];
-              Stk->prof[3][iw] = profall[3][iw];
-            }
-
-            INVERSION(Input, Stk, Par, LM, Mpi); 
-
-            MPI_Send(coord, 2, MPI_INT, 0, 2000+Mpi->rank, MPI_COMM_WORLD);
-
-            MPI_Send(Par->Par_Best+1, 9, MPI_DOUBLE, 0, 2000+Mpi->rank, \
-                MPI_COMM_WORLD);
-
-            MPI_Send(&Par->Chisq_Best, 1, MPI_DOUBLE, 0, 2000+Mpi->rank, \
-                MPI_COMM_WORLD);
-
-          }
-        }
-
       }else{
-
-        for(iy=0;iy<Input->nycache;iy++){
-          if(iy%50 == 0){
-            sprintf(MeSS, " -- pixel y = %d -- \n", iy);
-            VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>0);
+        do{
+          if(Input.cache[icache]){
+            PixelMV(&Input, &Subset);
+          }else{
+            SubsetRV.coord[0] = Subset.coord[0];
+            SubsetRV.coord[1] = Subset.coord[1];
+            rProfile(&Input, &Stk, &Subset);
+            SubsetRV.nProf = Subset.nProf;
+            INVERSION_MULTI(&Input, &Stk, &Para, &LM, &Subset);
+            WRITE_RESULT(&Input, &SubsetRV, &Stk);
           }
-      
-          for(ix=0;ix<Input->nxcache;ix++){
-
-            coord[0] = ix+Input->sol_box[0][0];
-            coord[1] = iy+Input->sol_box[1][0];
-
-            Imean = 0.0;
-            for(iw=0;iw<Stk->nl;iw++){
-              Imean += Stk->profall[coord[1]][coord[0]][iw];
-            }
-            Imean /= Stk->nl;
-
-            if(Imean!=Imean) continue;
-
-            // if on disk
-            if(Imean<Input->Icriteria) continue;
-
-            for(iw=0;iw<Stk->nl;iw++){
-              Stk->prof[0][iw] = (double) \
-                  (Stk->profall[coord[1]][coord[0]][iw]);
-              Stk->prof[1][iw] = (double) \
-                  (Stk->profall[coord[1]][coord[0]][iw+Stk->nl]);
-              Stk->prof[2][iw] = (double) \
-                  (Stk->profall[coord[1]][coord[0]][iw+Stk->nl*2]);
-              Stk->prof[3][iw] = (double) \
-                  (Stk->profall[coord[1]][coord[0]][iw+Stk->nl*3]);
-            }
-
-            INVERSION(Input, Stk, Par, LM, Mpi); 
-
-            for(ipar=0;ipar<9;ipar++){
-              res[iy][ix][ipar] = Par->Par_Best[ipar+1];
-            }
-            res[iy][ix][9] = Par->Chisq_Best;
-   
-          }
-        }
-
-        sprintf(filename, "!%s",Input->Result_Path);
-        fits_create_file(&(Input->fptr_res), filename, &stat);
-
-        naxis = 3;
-        naxes[0] = 10;
-        naxes[1] = Input->nxcache;
-        naxes[2] = Input->nycache;
-
-        fits_create_img(Input->fptr_res, DOUBLE_IMG, naxis, naxes, &stat);
-
-        //write results
-        fits_open_file(&(Input->fptr_res), Input->Result_Path,\
-            READWRITE, &stat);
-
-        fpixel[0] = 1;
-        fpixel[1] = 1;
-        fpixel[2] = 1;
-              
-        fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, \
-            10*Input->nxcache*Input->nycache, res[0][0], &stat);
-              
-        fits_close_file(Input->fptr_res, &stat);
-
+          
+          icache++;
+        }while(Subset.pcounts<Input.counts);
       }
 
+#ifdef PARALLEL_MPI
     }else{
 
-      int **cache = cache_init(Input, Mpi, Stk, &stat);
-      
-      MPI_Bcast(&stat, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-      if(stat!=0){
-        if(Mpi->rank==0){
-          FREE_MATRIX(cache, 0, 0, enum_int);  
+      if(Mpi.rank==0){
+        if(Input.fastmode){
+          rProfilesll(&Input, &Stk);
         }
+        ptr = Input.profbuff;
 
-        Free_Ram(LM, Stk, Input, Par, Mpi);
+        for(pid=1, icache=0; pid<Mpi.size && Subset.pcounts<Input.counts; \
+            icache++){
 
-        if(Mpi->rank==0){
-          Error(enum_error, "main", "error return from cache_init \n", \
-              Input->Verbose_Path);
-        }else{
-          ABORTED();
-        }
-      }
+          if(!Input.fastmode && Input.cache[icache]){
+            PixelMV(&Input, &Subset);
+            rcounts += Subset.nProf;
+          }else{
 
-      if(Mpi->rank==0){
-        sprintf(MeSS, "\n -- inversion starting with %d cores -- \n", \
-            Mpi->nprocs);
-        VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>0);
-      }
+            if(Subset.nProf > Input.counts-Subset.pcounts){ 
+              Subset.nProf = Input.counts-Subset.pcounts;
+            }
+            MPI_Send(&Subset.nProf, 1, MPI_INT, pid, TAG_NPROF, \
+                MPI_COMM_WORLD);
+            MPI_Send(Subset.coord, 2, MPI_INT, pid, TAG_COORD, \
+                MPI_COMM_WORLD);
 
-      if(Mpi->nprocs>1){
-
-        if(Mpi->rank==0){
-
-          coord[0] = Input->sol_box[0][0];
-          coord[1] = Input->sol_box[1][0];
-          while(true){
-
-            /* if aborting */
-            //if(true){
-
-
-            //}
-
-            /* code */
-            // if there are pixel left and free CPU and 
-            ipid = cpu_check(cpu_busy, Mpi->nprocs);
-      
-            if(scounts<Input->counts && ipid>0){
-              ix = coord[0]-Input->sol_box[0][0];
-              iy = coord[1]-Input->sol_box[1][0];
-
-              if(cache[ix][iy] == 0){
-
-                // read the data 
-                rprofile(Input, coord, Stk);
-
-                Imean = 0.0;
-                for(i=0;i<Stk->nl;i++) Imean += Stk->prof[0][i];
-                Imean /= Stk->nl;
-
-                // if on disk
-                if(Imean>Input->Icriteria){
-                  // send the coordinates
-                  MPI_Send(coord, 2, MPI_INT, ipid, 1000+ipid, MPI_COMM_WORLD);
-
-                  // send the data
-                  MPI_Send(Stk->prof[0], Stk->nl*4, MPI_DOUBLE, ipid, \
-                      1000+ipid, MPI_COMM_WORLD);
-
-                  // That CPU is now busy
-                  cpu_busy[ipid] = 1;
-
-                // if off limb
-                }else{
-
-                  //write cache
-                  cache_write(Input, coordr);
-
-                  rcounts++;
-                }
-
-              }else{
-                rcounts++;
-              }
-                          
-              // move to the next pixel
-              if(coord[0]>=Input->sol_box[0][1]){
-                coord[0] = Input->sol_box[0][0];
-                coord[1]++;
-              }else{
-                coord[0]++;
-              }
-
-              scounts++;
-
+            if(Input.fastmode){      
+              ptr = Input.profbuff+Stk.nw*4*Subset.pcounts;
+              PixelMV(&Input, &Subset);
+            }else{
+              rProfile(&Input, &Stk, &Subset);
             }
 
-            for (ipid = 1; ipid < Mpi->nprocs; ipid++){
+            MPI_Send(ptr, Stk.nw*4*Subset.nProf, MPI_DOUBLE, pid, \
+                TAG_DATA, MPI_COMM_WORLD);
+            pid++;
+            actived++;
+          }
+        }
 
-              //Test for a message from the slave
-              MPI_Iprobe(ipid, 2000+ipid, MPI_COMM_WORLD, &receiving, \
-                  &status);
-              if(!receiving) continue;
+        if(actived<Mpi.size){
+          for(int ii=actived; ii<Mpi.size; ii++){
+            MPI_Send(&terminal, 1, MPI_INT, ii, TAG_NPROF, \
+                MPI_COMM_WORLD);
+          }
+        }
 
-              // recieve the coordinates
-              MPI_Recv(coordr, 2, MPI_INT, ipid, 2000+ipid, MPI_COMM_WORLD, \
-                  &status);
+        while(rcounts<Input.counts){
+          MPI_Recv(&SubsetRV.nProf, 1, MPI_INT, MPI_ANY_SOURCE,
+              TAG_R_NPROF, MPI_COMM_WORLD, &status);
 
-              coordr[0] = coordr[0]-Input->sol_box[0][0];
-              coordr[1] = coordr[1]-Input->sol_box[1][0];
+          src = status.MPI_SOURCE;
+          MPI_Recv(SubsetRV.coord, 2, MPI_INT, src, TAG_R_COORD, \
+              MPI_COMM_WORLD, &status);
+          if(Input.fastmode){
+            ptrRV = Input.resbuff+10*((SubsetRV.coord[1] \
+                -Input.sol_box[1][0])*Input.cache_header.nx \
+                +(SubsetRV.coord[0]-Input.sol_box[0][0]));
+          }else{
+            ptrRV = Input.resbuff;
+          }
+       
+          MPI_Recv(ptrRV, 10*SubsetRV.nProf, MPI_DOUBLE, src, \
+              TAG_R_DATA, MPI_COMM_WORLD, &status);
 
-              // recieve the result
-              MPI_Recv(Par->Par_Best+1, 9, MPI_DOUBLE, ipid, 2000+ipid, \
-                  MPI_COMM_WORLD, &status);
+          if(Input.output_fit){
+            MPI_Recv(Input.fitbuff, Stk.nw*4*SubsetRV.nProf, MPI_DOUBLE, \
+              src, TAG_R_DATA, MPI_COMM_WORLD, &status);  
+          }
 
-              MPI_Recv(&Par->Chisq_Best, 1, MPI_DOUBLE, ipid, 2000+ipid, \
-                  MPI_COMM_WORLD, &status);
+          if(!Input.fastmode){
+            WRITE_RESULT(&Input, &SubsetRV, &Stk);
+          }
 
-              //write results
-              fits_open_file(&(Input->fptr_res), Input->Result_Path,\
-                  READWRITE, &stat);
+          rcounts += SubsetRV.nProf;
+          valid = 0;
+          while(Subset.pcounts < Input.counts){
 
-              fpixel[1] = coordr[0]+1;
-              fpixel[2] = coordr[1]+1;
-              fpixel[0] = 1;
-              fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, 9, \
-                  Par->Par_Best+1, &stat);
+            if(!Input.fastmode && Input.cache[icache]){
+              icache++;
+              PixelMV(&Input, &Subset);
+              rcounts += Subset.nProf;
+            }else{
+              valid = 1;
+              break;
+            }
+          }
 
-              fpixel[0] = 10;
-              fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, 1, \
-                  &Par->Chisq_Best, &stat);
+          if(valid){
+            icache++;
+            MPI_Send(&Subset.nProf, 1, MPI_INT, src, TAG_NPROF, \
+                MPI_COMM_WORLD);
+            MPI_Send(Subset.coord, 2, MPI_INT, src, TAG_COORD, \
+                MPI_COMM_WORLD);
+
+            if(Input.fastmode){      
+              ptr = Input.profbuff+Stk.nw*4*Subset.pcounts;
+              PixelMV(&Input, &Subset);
               
-              fits_close_file(Input->fptr_res, &stat);
-
-              if(Input->output_fit){
-
-                // recieve the fit
-                MPI_Recv(Stk->fit[0], Stk->nl*4, MPI_DOUBLE, ipid, \
-                    2000+ipid, MPI_COMM_WORLD, &status);
-
-                // write the fit
-                fits_open_file(&(Input->fptr_fit), Input->Fit_Path, \
-                    READWRITE, &stat);
-
-                // set the position of the first pixel.
-                fpixel[0] = 1;
-                fpixel[1] = 1;
-                fpixel[2] = coordr[0]+1;
-                fpixel[3] = coordr[1]+1;
-                fits_write_pix(Input->fptr_fit, TDOUBLE, fpixel, Stk->nl*4, \
-                    Stk->fit[0], &stat);
-
-                fits_close_file(Input->fptr_fit, &stat);
-
-              }   
-
-              //write cache
-              cache_write(Input, coordr);
-
-
-              rcounts++;
-              // the cpu is free
-              cpu_busy[ipid] = 0;
+            }else{
+              rProfile(&Input, &Stk, &Subset);
             }
-
-            if(rcounts>=Input->counts) break;
-
-          }
-        
-          coord[0] = -1;
-          for (ipid = 1; ipid < Mpi->nprocs; ipid++){
-              // notice the slave
-              MPI_Send(coord, 2, MPI_INT, ipid, 1000+ipid, MPI_COMM_WORLD);
-          }
-
-          FREE_MATRIX(cache, 0, 0, enum_int);  
-
-        }else{
-
-          while(true){
-            // recieve the integers
-            MPI_Recv(coord, 2, MPI_INT, 0, 1000+Mpi->rank, MPI_COMM_WORLD, \
-                &status);
-            // break if no data
-            if(coord[0]<0) break;
-
-            // recieve the data
-            MPI_Recv(Stk->prof[0], Stk->nl*4, MPI_DOUBLE, 0, 1000+Mpi->rank,\
-                MPI_COMM_WORLD, &status);  
-
-            INVERSION(Input, Stk, Par, LM, Mpi); 
-            MPI_Send(coord, 2, MPI_INT, 0, 2000+Mpi->rank, MPI_COMM_WORLD);
-
-            MPI_Send(Par->Par_Best+1, 9, MPI_DOUBLE, 0, 2000+Mpi->rank, \
+            MPI_Send(ptr, Stk.nw*4*Subset.nProf, MPI_DOUBLE, \
+                src, TAG_DATA, MPI_COMM_WORLD);
+      
+          }else{
+            MPI_Send(&terminal, 1, MPI_INT, src, TAG_NPROF, \
                 MPI_COMM_WORLD);
-
-            MPI_Send(&Par->Chisq_Best, 1, MPI_DOUBLE, 0, 2000+Mpi->rank, \
-                MPI_COMM_WORLD);
-            if(Input->output_fit){
-              MPI_Send(Stk->fit[0], Stk->nl*4, MPI_DOUBLE, 0, \
-                  2000+Mpi->rank, MPI_COMM_WORLD);
-
-            }
           }
         }
-
+        if(Input.fastmode){
+          Subset.coord[0] = Input.sol_box[0][0];
+          Subset.coord[1] = Input.sol_box[1][0];
+          Subset.nProf = Input.counts;
+          WRITE_RESULT(&Input, &Subset, &Stk);
+        }
+  
       }else{
+        while(1){
 
-        for(coordr[1]=0;coordr[1]<Input->nycache;coordr[1]++){
-          if(coordr[1]%50 == 0){
-            sprintf(MeSS, " -- pixel y = %d -- \n", coordr[1]);
-            VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>0);
-          }
-      
-          for(coordr[0]=0;coordr[0]<Input->nxcache;coordr[0]++){
-            coord[0] = coordr[0]+Input->sol_box[0][0];
-            coord[1] = coordr[1]+Input->sol_box[1][0];
-  /*
-            if(coordr[0]%50 == 0){
+          MPI_Recv(&Subset.nProf, 1, MPI_INT, 0, TAG_NPROF, \
+              MPI_COMM_WORLD, &status);
+          if(Subset.nProf<0) break;
 
-              sprintf(MeSS, " -- pixel x = %d -- \n", coordr[0]);
-              VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>3);
-            }
-  */
-            if(cache[coordr[0]][coordr[1]] == 0){
-              // read the data 
-              coord[0] = coordr[0]+Input->sol_box[0][0];
-              coord[1] = coordr[1]+Input->sol_box[1][0];
-              rprofile(Input, coord, Stk);
-
-              Imean = 0.0;
-              for(i=0;i<Stk->nl;i++) Imean += Stk->prof[0][i];
-              Imean /= Stk->nl;
-
-              // if on disk
-              if(Imean<Input->Icriteria){
-
-                //write cache
-                cache_write(Input, coordr);
-
-                continue;
-              }
-
-              INVERSION(Input, Stk, Par, LM, Mpi); 
-
-              fits_open_file(&(Input->fptr_res), Input->Result_Path, \
-                  READWRITE, &stat);
-
-              fpixel[1] = coordr[0]+1;
-              fpixel[2] = coordr[1]+1;
-
-              fpixel[0] = 1;
-              fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, 9, \
-                  Par->Par_Best+1, &stat);
-
-              fpixel[0] = 10;
-
-              fits_write_pix(Input->fptr_res, TDOUBLE, fpixel, 1, \
-                  &Par->Chisq_Best, &stat);       
-
-              fits_close_file(Input->fptr_res, &stat);
-
-              
-              cache_write(Input, coordr);
-
-              if(Input->output_fit){
-
-                // write the fit
-                fits_open_file(&(Input->fptr_fit), Input->Fit_Path, \
-                    READWRITE, &stat);
-                fpixel[0] = 1;
-                fpixel[1] = 1;
-                fpixel[2] = coordr[0]+1;
-                fpixel[3] = coordr[1]+1;
-                fits_write_pix(Input->fptr_fit, TDOUBLE, fpixel, Stk->nl*4, \
-                    Stk->fit[0], &stat);
-
-                fits_close_file(Input->fptr_fit, &stat);
-
-              }   
-          
-            }
+          MPI_Recv(Subset.coord, 2, MPI_INT, 0, TAG_COORD, \
+              MPI_COMM_WORLD, &status);
+          MPI_Recv(Input.profbuff, Stk.nw*4*Subset.nProf, MPI_DOUBLE, \
+              0, TAG_DATA, MPI_COMM_WORLD, &status);  
+          INVERSION_MULTI(&Input, &Stk, &Para, &LM, &Subset);
+          MPI_Send(&Subset.nProf, 1, MPI_INT, 0, TAG_R_NPROF, \
+              MPI_COMM_WORLD);
+          MPI_Send(Subset.coord, 2, MPI_INT, 0, TAG_R_COORD, \
+              MPI_COMM_WORLD);
+          MPI_Send(Input.resbuff, 10*Subset.nProf, MPI_DOUBLE, 0, \
+              TAG_R_DATA, MPI_COMM_WORLD);
+          if(Input.output_fit){
+            MPI_Send(Input.fitbuff, Stk.nw*4*Subset.nProf, MPI_DOUBLE, \
+              0, TAG_R_DATA, MPI_COMM_WORLD); 
           }
         }
-
-        FREE_MATRIX(cache, 0, 0, enum_int);  
-
       }
+#endif 
     }
 
-    Timer_Mpi(Mpi);
+    FREERAM(&Input, &Stk, &LM, &Para, &Mpi);
+    Timer(&Mpi);
 
-    if (Mpi->rank == 0){ 
-      sprintf(MeSS, "\n -- inversion finished -- \n");
-      VerboseM(MeSS, Input->Verbose_Path, Input->verboselv>0);
-    }
-
-    //Free_Ram(LM, Stk, Input, Par, Mpi);
-
+#ifdef PARALLEL_MPI
     MPI_Finalize();
+#endif
 
     return 0;
-    
 }
 
 /*--------------------------------------------------------------------------------*/

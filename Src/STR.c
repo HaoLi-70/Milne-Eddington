@@ -7,6 +7,19 @@
      
       revision log:
 
+        06 Mar. 2026  (Hao Li)
+          --- Updates:  
+              Redesign the subroutines to improve safety. 
+              STR_READ_LINE now supports reading long very line.  
+              by dynamically reallocating the array.
+
+        4 Mar. 2026.
+          --- Update: Removed unnecessary variables and redundant 
+                      computation, and standardize the names 
+                      of subroutines. (Hao Li)
+                      Redesigned str_read_line to handle dynamically 
+                      allocated buffers. (Hao Li)
+
         30 Oct. 2022
           --- Initial commit (Hao Li)
      
@@ -14,53 +27,46 @@
 
 /*--------------------------------------------------------------------------------*/
 
-extern int Check_Char(char *str, char c){
+
+int STR_COUNT_CHAR(const char *str, const char c){
 
 /*--------------------------------------------------------------------------------*/
-    
     /*######################################################################
       Purpose:
-        check how many char c is in a string.
+        count char c in a string.
       Record of revisions:
-        10 Sept. 2021.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
         c, the charaster.
       Return:
         return the position of the charaster.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    if(str == NULL || *str == '\0') return -1;
+    if(!str) return -1;
     
-    char *p = str;
-    int indx = 0, num = 0;
-    
-    while(*p != '\0'){
-      if(*p == c) num++;
+    int count = 0;
+    const char *p = str;
+
+    while(*p){
+      if(*p == c) count++;
       p++;
-      indx++;
     }
     
-    if((int)strlen(str) > indx){
-      return num;
-    }else{
-      return -2;
-    }
+    return count;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern int Indx_Char(char *str, char c, int order){
+int STR_INDEX_CHAR(const char *str, const char c, int order){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         get the index of char c in a string.
       Record of revisions:
-        10 Sept. 2021.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
         c, the charaster.
@@ -68,267 +74,257 @@ extern int Indx_Char(char *str, char c, int order){
       Return:
         return the position of the charaster.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    if(str == NULL || *str == '\0') return -1;
-
+    if(!str || *str=='\0') return -1;
     if(order <= 0) return -2;
     
-    char *p = str;
-    int indx = 0, num = 0;
-
-    while(*p != '\0' && num!=order ){
-      if(*p == c) num++;
+    int count = 0;
+    const char *p = str;
+    while(*p){
+      if(*p == c && ++count == order)
+        return p - str;
       p++;
-      indx++;
     }
 
-    if((int)strlen(str) > indx){
-      return indx;
-    }else{
-      return -3;
-    }
+    return -3;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern int Indx_Space(char *str, int order){
+
+int STR_INDEX_SPACE(const char *str, int order){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         get the index of a space in a string.
       Record of revisions:
-        30 Nov. 2019.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
         order, the order of the space.
       Return:
         return the position of the charaster.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    if(str == NULL || *str == '\0') return -1;
-
+    if(str == NULL || !*str) return -1;
     if(order <= 0) return -2;
-    
-    char *p = str;
-    int indx = 0, num = 0;
 
-    while(*p != '\0' && num!=order ){
-      if(isspace(*p)) num++;
+    int count = 0;
+    const char *p = str;
+    while(*p){
+      if(isspace((unsigned char)*p) && ++count == order)
+        return p - str;
       p++;
-      indx++;
     }
 
-    if((int)strlen(str) > indx){
-      return indx;
-    }else{  
-      return -3;
-    }
+    return -3;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern void Trim1(char *str){
+int STR_TRIM_LEFT(char *str){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         remove leading spaces in a string.
       Record of revisions:
-        29 Nov. 2019.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
       Output parameters:
         str, the output string.
       Return:
-        .
+        return the number of removed spaces.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    if(str == NULL || *str == '\0') return;
+    if(!str || !*str) return 0;
     
-    int len = 0;
     char *p = str;
-    
-    while(*p != '\0' && isspace(*p)){
+    while(*p && isspace((unsigned char)*p)){
       p++;
-      len++;
     }
-    
-    memmove(str, p, strlen(str) - len + 1);
-    
-    return;
+
+    int count = p - str; 
+    if(count>0){
+      memmove(str, p, strlen(p)+1);
+    }
+
+    return count;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern void Trim2(char *str){
+
+int STR_TRIM_RIGHT(char *str){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         remove trailing spaces in a string.
       Record of revisions:
-        29 Nov. 2019.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
       Output parameters:
         str, the output string.
+      Return:
+        return the number of removed spaces.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    if(str == NULL || *str == '\0') return;
+    if(!str || *str=='\0') return 0;
     
-    long len = strlen(str);
-    char *p = str + len - 1;
-
-    while(p >= str  && isspace(*p)){
-      *p = '\0';
+   
+    char *p_end = str+strlen(str)-1;
+    char *p = p_end;
+ 
+    while(p >= str && isspace((unsigned char)*p)){
       p--;
     }
+    *(p+1) = '\0';
     
-    return;
+    return (int)(p_end-p);
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern void Trim(char *str, int indx){
+
+int STR_TRIM(char *str){
 
 /*--------------------------------------------------------------------------------*/
- 
     /*######################################################################
       Purpose:
-        remove spaces in a string.
+        remove both leading and trailing spaces.
       Record of revisions:
-        29 Nov. 2019.
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
-        indx, indx = 1, for the leading spaces; indx =2, for the
-            trailing spaces; indx=3 for both.
       Output parameters:
         str, the output string.
+      Return:
+        return the number of removed spaces.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    switch(indx){
-      case 1:
-        Trim1(str);
-        break;
-            
-      case 2:
-        Trim2(str);
-        break;
-            
-      case 3:
-        Trim1(str);
-        Trim2(str);
-        break;
-            
-      default:
-        break;
+    if (!str || !*str) return 0;
+
+    size_t len = strlen(str);
+    char *p_start = str;
+    char *p_end = str+len-1;
+    char *p = p_end;
+
+    while (*p_start && isspace((unsigned char)*p_start)) {
+      p_start++;
+    }
+
+    while(p >= str && isspace((unsigned char)*p)){
+      p--;
+    }
+    *(p+1) = '\0';
+   
+    int count_left = p_start-str; 
+    int count_right = (int)(p_end-p);
+
+    if (count_left>0) {
+      memmove(str, p_start, len-count_left-count_right+1);
     }
     
-    return;
+    return count_left+count_right;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern void String_Copy(char *str1, char *str2, long len, bool trim_flag){
+
+void STR_COPY(char *dest, size_t destsize, const char *src, \
+    size_t srcsize, bool trim_flag){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
-        copy a string from str2 to str1.
+        copy the contents of src to dest.
       Record of revisions:
-        29 Nov. 2019 (Hao Li)
+        4 Mar. 2026.
       Input parameters:
-        str2, the input string.
-        len, the length.
-        trim_flag, if the flag > 0, the leading and trailing spaces in
-            str1 will be removed.
+        destsize, buffer size
+        src, the input string.
+        srcsize, the src size.
+        trim_flag, if the flag > 0, remove the leading and trailing spaces.
       Input parameters:
-        str1, the output string.
+        dest, the output string.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    memmove(str1, str2, len);
-    str1[len] = '\0';
+    if(!dest || !src || !destsize || !srcsize) return;
+
+    size_t size = destsize>srcsize? srcsize : destsize-1;
+
+    memmove(dest, src, size);
+
+    dest[size] = '\0';
     
-    if(trim_flag) Trim(str1, 3);
+    if(trim_flag) STR_TRIM(dest);
     
     return;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern int String_Split(char *str1, char *str2){
+
+int STR_SPLIT(char *dest, size_t destsize, char *src){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
-        copy the first element in str2 to str1, the element in str2 is 
-            deleted.
+        copy the first element in src to dest and remove the copied element 
+            from src.
       Record of revisions:
-        29 Nov. 2019 (Hao Li)
+        4 Mar. 2026.
       Input parameters:
-        str2, the input string.
+        src, the input string.
+        destsize, buffer size.
       Ouput parameters:
-        str1, the coppyed element.
-        str2, the left elements.
+        dest, the coppyed element.
+        src, the left elements.
       Return:
-        return -1 if no element left, else return 0.
+        return 0 if no element left, else return 1.
     ######################################################################*/
-    
 /*--------------------------------------------------------------------------------*/
 
-    long len_tot;
-    int len;
-    char *p;
-    
-    Trim(str2, 3);
-    len_tot = strlen(str2);
-    len = Indx_Space(str2, 1);
+    if(!dest || !src) return -1;
 
-    if(len == -3){
-      String_Copy(str1, str2, len_tot, 1);
-      str2[0] = '\0';
-      return -1;
+    STR_TRIM(src);
+    size_t len_tot = strlen(src);
+
+    int space_idx = STR_INDEX_SPACE(src, 1); 
+    if(space_idx < 0){  
+      STR_COPY(dest, destsize, src, len_tot, true);
+      src[0] = '\0';
+      return 0;
 
     }else{
-      String_Copy(str1, str2, len-1, 1);
-
-      p = str2+len;
-      String_Copy(str2, p, len_tot-len, 1);
-      Trim(str2, 3);
-      Trim(str1, 3);
+      STR_COPY(dest, destsize, src, space_idx, true);
+      STR_COPY(src, destsize, src + space_idx + 1, len_tot - space_idx - 1, true);
     }
-    return 0;
+
+    return 1;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern void String_to_Upper(char *str){
+
+void STR_TOUPPER(char *str){
     
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         converts all the charactors in str to their uppercases.
       Record of revisions:
-        29 Nov. 2019 (Hao Li)
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
       Output parameters:
@@ -336,85 +332,124 @@ extern void String_to_Upper(char *str){
       Return:
         .
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    int i;
+    if(!str) return; 
 
-    for(i = 0; i < (int)strlen(str); i++) str[i] = toupper(str[i]);
+    for(char *p=str; *p; p++){
+      *p = toupper((unsigned char)*p);  
+    }
 
     return;
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern int String_elements(char *str){
+
+int STR_ELEMENTS(char *str){
 
 /*--------------------------------------------------------------------------------*/
-
     /*######################################################################
       Purpose:
         check how many elements (seperated by space) are the in a string.
       Record of revisions:
-        29 Nov. 2019 (Hao Li)
+        4 Mar. 2026.
       Input parameters:
         str, the input string.
       Return:
         the number of the elements.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    Trim(str, 3);
+    if(!str) return -1; 
 
-    int Num = 1, i;
+    STR_TRIM(str);
 
-    if(strlen(str) > 0){
-      for(i = 0;  i < (int) strlen(str)-1;  i++){
-        if(str[i] == ' ' && str[i+1] != ' ') Num++;
+    if (!(*str)) return 0;
+
+    int count = 1;
+    for(char *p=str;  *(p+1);  p++){
+      if(isspace((unsigned char)*p) && !isspace((unsigned char)*(p+1))){ 
+        count++;
       }
-      return Num;
-    }else{
-      return 0;
     }
+
+    return count; 
 }
 
 /*--------------------------------------------------------------------------------*/
 
-extern int Read_line(char *lines, FILE *fa){
-    
-/*--------------------------------------------------------------------------------*/
 
+int STR_READ_LINE(char **line, size_t *size, FILE *fa){
+
+/*--------------------------------------------------------------------------------*/
     /*######################################################################
       Purpose:
-        read a not commented line in a file fa.
+        read a valid line from a file fa.
       Record of revisions:
-        29 Nov. 2019 (Hao Li)
+        4 Mar. 2026.
       Input parameters:
         fa, the file.
       Output parameters:
-        lines, the output string.
+        line, the output string.
+        size, bufer size.
       Return:
         return the length of the line.
     ######################################################################*/
-
 /*--------------------------------------------------------------------------------*/
 
-    int len_tot, len;
+    if(!line || !size || !fa) return -3;
 
-    do{
-      if(fgets(lines, 300, fa) == NULL) return -1;
-      Trim(lines, 3);
-      len = Indx_Char(lines, '!', 1);
-      if(len > 0){
-        lines[len-1] = '\0';
-        Trim(lines, 3);
+    if(*line == NULL || *size == 0){
+      *size = 512;
+      *line = malloc(*size);
+      if (!*line) return -2;
+    }
+
+    while(1){
+
+      size_t len = 0;
+      int indexspace, nspaces;
+
+      while(1){
+        if(!fgets(*line + len, (int)(*size - len), fa)){
+          if(len == 0) return -1; 
+          break;
+        }
+
+        size_t chunk = strlen(*line+len);
+        len += chunk;
+        if (len > 0 && (*line)[len-1] == '\n') break;
+
+        size_t new_size = (*size)*2;
+        char *tmp = realloc(*line, new_size);
+        if (!tmp) return -2;
+        *line = tmp;
+        *size = new_size;
       }
-      len_tot = (int)(strlen(lines));
-    }while((lines[0] == '#') || (lines[0] == '!') || \
-        (lines[0] == '*') || (len_tot == 0));
 
-    return len_tot;
+      if(len == 0) continue;
+
+      nspaces = STR_TRIM_LEFT(*line);
+      len -= nspaces;
+
+      char first = (*line)[0];
+      if(first=='#' || first=='!' || first=='*' || first=='\0'){
+        continue;
+      }
+
+      indexspace = STR_INDEX_CHAR(*line, '!', 1);
+      if(indexspace >= 0){
+        line[indexspace] = '\0';
+        if (len>(size_t)indexspace){
+          len = indexspace;
+        }
+      }
+      nspaces = STR_TRIM_RIGHT(*line);
+      len -= nspaces;
+
+      return (int)len;
+    }
 }
 
 /*--------------------------------------------------------------------------------*/

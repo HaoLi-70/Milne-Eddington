@@ -1,27 +1,47 @@
 
-#ifndef LM_FIT_h
-#define LM_FIT_h
+#pragma once
 
 /*--------------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-#include "MILNE_EDDINGTON.h"
-#include "MPI_CTRL.h"
-#include "PARAMETER.h"
+#include "ME_SOLVER.h"
+#include "MPI_INIT.h"
 #include "RANDOM_NUMBER.h"
-#include "READ_INPUT.h"
+#include "RINPUT.h"
 #include "SVD.h"
 
 /*--------------------------------------------------------------------------------*/
 
-extern int LM_FIT(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PAR *Par, \
-        STRUCT_LM *LM);
+typedef struct Struct_Levenberg_Marquardt{
 
-extern int INVERSION(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
-        STRUCT_PAR *Par, STRUCT_LM *LM, STRUCT_MPI *Mpi);
+    // the indx array for LU decomposition.
+    int *indx, niter, verboselv, nruns;
+
+    // the Hessian matrix, the b vacror and the solutions
+    STRUCT_MATRIX Hessian, Hessian_new, Regul_H, V;
+    
+    double *Jacfvec, *Sol, *Regul_J, *W;
+
+    // the damping factor, and values to update the facrot.
+    double Damp, Lam_reject, Lam_accept, Penalty, Criteria, Threshold;
+
+    // the limits of the damping factor.
+    double Lam_Lim[2];
+
+    double ratio, chisq;
+  
+    bool Regul_flag, HMI_REF;
+
+    STRUCT_RNGState RNG;
+
+}STRUCT_LM;
 
 /*--------------------------------------------------------------------------------*/
 
-#endif /* LM_FIT_h */
+extern int INVERSION_MULTI(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
+    STRUCT_PARA *Para, STRUCT_LM *LM, STRUCT_SUBSET *Subset);
+
+/*--------------------------------------------------------------------------------*/
+

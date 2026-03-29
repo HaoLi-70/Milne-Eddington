@@ -1,6 +1,5 @@
 
-#ifndef RANDOM_NUMBER_h
-#define RANDOM_NUMBER_h
+#pragma once
 
 /*--------------------------------------------------------------------------------*/
 
@@ -8,27 +7,46 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
+
+#ifdef USE_OPEMP
+#include <omp.h>
+#endif
+
+#ifdef USE_GSL
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#endif
+
+#include "MPI_INIT.h"
 
 /*--------------------------------------------------------------------------------*/
 
-#define IA 16807
-#define IM 2147483647
-#define AM (1.0/IM)
-#define IQ 127773
-#define IR 2836
 #define NTAB 32
-#define NDIV (1+(IM-1)/NTAB)
-#define EPS 1.2e-7
-#define RNMX (1.0-EPS)
+
+typedef struct Struct_RNG_State{
+#ifdef USE_GSL
+    gsl_rng *gsl;
+#else
+    int32_t idum;
+    int32_t iy;
+    int32_t iv[NTAB];
+
+    bool iset;
+    double gset; 
+#endif
+}STRUCT_RNGState;
 
 /*--------------------------------------------------------------------------------*/
 
-extern double Ran1(long *idum);
+extern void RNG_INIT(STRUCT_RNGState *State, int rank, int thread_id);
 
-extern double GASDEV(long *idum);
+extern double RNG_UNIFORM(STRUCT_RNGState *State);
 
-extern int Random_Seed(long *idum);
+extern double RNG_GAUSS(STRUCT_RNGState *State);
 
 /*--------------------------------------------------------------------------------*/
-
-#endif /* RANDOM_NUMBER_h */

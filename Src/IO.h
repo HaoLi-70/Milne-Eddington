@@ -1,6 +1,5 @@
 
-#ifndef IO_H
-#define IO_H
+#pragma once
 
 /*--------------------------------------------------------------------------------*/
 
@@ -8,23 +7,32 @@
 #include <stdlib.h>
 #include <fitsio.h>
 #include "ALLOCATION.h"
-#include "MPI_CTRL.h"
-#include "READ_INPUT.h"
+#include "ME_SOLVER.h"
+#include "MPI_INIT.h"
+#include "RINPUT.h"
+
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
 
 /*--------------------------------------------------------------------------------*/
 
 extern int rWavelength(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
-        STRUCT_MPI *Mpi);
+    STRUCT_MPI *Mpi);
 
-extern int rprofile(STRUCT_INPUT *Input, int coord[], STRUCT_STK *Stk);
+extern int rProfile(STRUCT_INPUT *Input, STRUCT_STK *Stk, \
+    STRUCT_SUBSET *Subset);
 
-extern int rprofileall(STRUCT_INPUT *Input, STRUCT_STK *Stk);
+extern int rProfilesll(STRUCT_INPUT *Input, STRUCT_STK *Stk);
 
-extern int **cache_init(STRUCT_INPUT *Input, STRUCT_MPI *Mpi, \
-        STRUCT_STK *Stk, int *status);
+extern int PixelMV(STRUCT_INPUT *Input, STRUCT_SUBSET *Subset);
 
-extern int cache_write(STRUCT_INPUT *Input, int *coord);
+extern int CACHE_INIT(STRUCT_INPUT *Input, STRUCT_MPI *Mpi, \
+    STRUCT_STK *Stk);
+
+extern int WRITE_RESULT(STRUCT_INPUT *Input, STRUCT_SUBSET *Subset, \
+    STRUCT_STK *Stk);
+
+extern int CLOSE_FILES(void);
 
 /*--------------------------------------------------------------------------------*/
-
-#endif /* IO_H */
