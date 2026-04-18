@@ -3,7 +3,7 @@
 examples/*/*.fits
 data-user/*/*fits
 **/cache
-**/log_*
+**//log_*
 /Makefile
 /MEINV
 **/.o
@@ -11,3 +11,6 @@ data-user/*/*fits
 **/verbose*
 /Objs/
 /bin/
+!log_*.c
+!log_*.h
+
