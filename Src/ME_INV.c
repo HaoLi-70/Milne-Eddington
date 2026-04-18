@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
         true, Input.verboselv>=2); 
     Subset.pcounts = 0;
     if(Mpi.size==1){
-      if(Input.fastmode){
+      if(Input.cache_prof){
         rProfilesll(&Input, &Stk);
         INVERSION_MULTI(&Input, &Stk, &Para, &LM, &Subset);
 
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     }else{
 
       if(Mpi.rank==0){
-        if(Input.fastmode){
+        if(Input.cache_prof){
           rProfilesll(&Input, &Stk);
         }
         ptr = Input.profbuff;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
         for(pid=1, icache=0; pid<Mpi.size && Subset.pcounts<Input.counts; \
             icache++){
 
-          if(!Input.fastmode && Input.cache[icache]){
+          if(!Input.cache_prof && Input.cache[icache]){
             PixelMV(&Input, &Subset);
             rcounts += Subset.nProf;
           }else{
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
             MPI_Send(Subset.coord, 2, MPI_INT, pid, TAG_COORD, \
                 MPI_COMM_WORLD);
 
-            if(Input.fastmode){      
+            if(Input.cache_prof){      
               ptr = Input.profbuff+Stk.nw*4*Subset.pcounts;
               PixelMV(&Input, &Subset);
             }else{
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
           src = status.MPI_SOURCE;
           MPI_Recv(SubsetRV.coord, 2, MPI_INT, src, TAG_R_COORD, \
               MPI_COMM_WORLD, &status);
-          if(Input.fastmode){
+          if(Input.cache_prof){
             ptrRV = Input.resbuff+10*((SubsetRV.coord[1] \
                 -Input.sol_box[1][0])*Input.cache_header.nx \
                 +(SubsetRV.coord[0]-Input.sol_box[0][0]));
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
               src, TAG_R_DATA, MPI_COMM_WORLD, &status);  
           }
 
-          if(!Input.fastmode){
+          if(!Input.cache_prof){
             WRITE_RESULT(&Input, &SubsetRV, &Stk);
           }
 
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
           valid = 0;
           while(Subset.pcounts < Input.counts){
 
-            if(!Input.fastmode && Input.cache[icache]){
+            if(!Input.cache_prof && Input.cache[icache]){
               icache++;
               PixelMV(&Input, &Subset);
               rcounts += Subset.nProf;
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
             MPI_Send(Subset.coord, 2, MPI_INT, src, TAG_COORD, \
                 MPI_COMM_WORLD);
 
-            if(Input.fastmode){      
+            if(Input.cache_prof){      
               ptr = Input.profbuff+Stk.nw*4*Subset.pcounts;
               PixelMV(&Input, &Subset);
               
@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
                 MPI_COMM_WORLD);
           }
         }
-        if(Input.fastmode){
+        if(Input.cache_prof){
           Subset.coord[0] = Input.sol_box[0][0];
           Subset.coord[1] = Input.sol_box[1][0];
           Subset.nProf = Input.counts;

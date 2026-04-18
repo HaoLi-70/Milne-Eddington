@@ -25,10 +25,10 @@ typedef struct Struct_Levenberg_Marquardt{
     double *Jacfvec, *Sol, *Regul_J, *W;
 
     // the damping factor, and values to update the facrot.
-    double Damp, Lam_reject, Lam_accept, Penalty, Criteria, Threshold;
+    double Damp, Lam_reject, Lam_accept, Penalty, Criteria, Convg_Criteria;
 
     // the limits of the damping factor.
-    double Lam_Lim[2];
+    double Lam_Lim[2], Threshold;
 
     double ratio, chisq;
   

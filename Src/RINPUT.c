@@ -7,6 +7,11 @@
      
       revision log:
 
+        16 Apr. 2026  (Hao Li)
+          --- Updates:  
+              rename a keyword CACHEPROF and add an addition keyword 
+              CACHEINV.
+
         09 Mar. 2026  (Hao Li)
           --- Updates:  
               removed the support of solver for multi lines to improve. 
@@ -76,7 +81,7 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
       do{                                                                 \
         STR_TOUPPER(Keywords[indx].line);                                 \
         var = IS_YES(Keywords[indx].line);                                \
-        INPUT_VERBOSE(indx, "\n %s: %s", desc, var ? "Yes" : "No");    \
+        INPUT_VERBOSE(indx, "\n %s: %s", desc, var ? "Yes" : "No");       \
       }while(0)
 
 
@@ -300,8 +305,11 @@ static int Get_Keys(STRUCT_KEYS Keywords[], STRUCT_INPUT *Input, \
     INPUT_FLAG(KEY_HMIREF, Input->HMI_REF, "HMI reference direction");
 
 
-    INPUT_FLAG(KEY_FASTMODE, Input->fastmode, "Fast mode");
-    if(Input->fastmode) Input->output_fit = false;
+    INPUT_FLAG(KEY_CACHEPROF, Input->cache_prof, "Cache profile");
+    if(Input->cache_prof) Input->output_fit = false;
+
+
+    INPUT_FLAG(KEY_CACHEINV, Input->cache_inv, "Cache inversion progress");
 
     Mpi->nthreads = 1;
 #ifdef USE_OPENMP
@@ -436,12 +444,13 @@ int RDINPUT(const char Filename[], STRUCT_INPUT *Input, STRUCT_MPI *Mpi){
       [KEY_ICRITERIA] = KEY_DEF("Icriteria","100."),                          //47
       [KEY_SVD_THRESHOLD] = KEY_DEF("SVDthreshold","1e-6"),                   //48
       [KEY_HMIREF] = KEY_DEF("HMI_REF","No"),                                 //49
-      [KEY_FASTMODE] = KEY_DEF("Fastmode","No"),                             //50
+      [KEY_CACHEPROF] = KEY_DEF("Cache_prof","No"),                           //50
       [KEY_NTHREADS] = KEY_DEF("Nthreads","4"),                               //51
       [KEY_NFIGURES] = KEY_DEF("Nfigures","6"),                               //52
       [KEY_STEP] = KEY_DEF("Step", \
           "1000., 2., 2., 2., 20., 0.3, 30., 1e5, 0.3"),                      //53
-      [KEY_NPROF] = KEY_DEF("nprofiles", "20")                                //54
+      [KEY_NPROF] = KEY_DEF("nprofiles", "20"),                               //54
+      [KEY_CACHEINV] = KEY_DEF("Cache_inv","No")                              //55
     };
 
     char *lines = NULL, key[Key_Length], *value;

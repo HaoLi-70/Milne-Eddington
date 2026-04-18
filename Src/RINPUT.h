@@ -69,11 +69,12 @@ typedef enum Key_Index{
     KEY_ICRITERIA,
     KEY_SVD_THRESHOLD,
     KEY_HMIREF,
-    KEY_FASTMODE,
+    KEY_CACHEPROF,
     KEY_NTHREADS,
     KEY_NFIGURES,
     KEY_STEP,
     KEY_NPROF,
+    KEY_CACHEINV,
     KEY_TOTAL
 }KEY_INDEX;
 
@@ -151,7 +152,7 @@ typedef struct{
     // structure with some precomputed coefficients.
     //STRUCT_FADDEEVA *Fadd;
 
-    bool HMI_REF, fastmode;
+    bool HMI_REF, cache_prof, cache_inv;
     double VCoeffi, LCoeffi, Icriteria;
 
     // the number of dimension, the number of pixels, x and y sizes 

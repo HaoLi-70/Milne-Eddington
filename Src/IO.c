@@ -7,6 +7,11 @@
      
       revision log:
 
+        16 Apr. 2026  (Hao Li)
+          --- Updates:  
+              rename the keyword fastmode t cache_prof, and add an 
+              addition keyword cache_inv to cache the inversion progress.
+
         17 Apr. 2025
           --- Updates: locate the line center (Hao Li)
 
@@ -510,7 +515,7 @@ int CACHE_INIT(STRUCT_INPUT *Input, STRUCT_MPI *Mpi, \
 
     if(Mpi->rank==0){
       Input->cache = (int *)calloc(ncache, sizeof(int));
-      if(Input->fastmode){
+      if(Input->cache_prof || !Input->cache_inv){
         lcache = false;
       }else{
         cache_file = fopen(Input->Cache_Path, "rb");
@@ -537,7 +542,7 @@ int CACHE_INIT(STRUCT_INPUT *Input, STRUCT_MPI *Mpi, \
       }
 
       if(!lcache){
-        if(!Input->fastmode){
+        if(!Input->cache_prof && Input->cache_inv){
           IO_VERBOSE(2, "\n  *** no correct cache file found. ***");     
           IO_VERBOSE(2, "\n   ** creating a cache file.");  
 
@@ -720,7 +725,7 @@ int WRITE_RESULT(STRUCT_INPUT *Input, STRUCT_SUBSET *Subset, STRUCT_STK *Stk){
     }
  
 
-    if(!Input->fastmode){
+    if(!Input->cache_prof && Input->cache_inv){
       int offset = sizeof(Input->cache_header) \
           +((Subset->coord[1]-Input->sol_box[1][0])*Input->cache_header.nx \
           +(Subset->coord[0]-Input->sol_box[0][0]))/Subset->nProf*sizeof(int);

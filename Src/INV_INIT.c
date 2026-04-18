@@ -7,6 +7,15 @@
      
       revision log:
 
+        18 Apr. 2026  (Hao Li)
+          --- Bugfix:  
+              A variable for exit-condition checking is added to the struct 
+              LM. 
+
+        16 Apr. 2026  (Hao Li)
+          --- Updates:  
+              rename the keyword fastmode t cache_prof.
+
         09 Mar. 2026
           --- Initial commit (Hao Li)
               moved some functions here. 
@@ -141,7 +150,9 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
     LM->Lam_Lim[0] = Input->Lam_Lim[0];
     LM->Lam_Lim[1] = Input->Lam_Lim[1];
 
-    LM->Criteria = Input->Convg_Criteria;
+    LM->Criteria = Input->Chisq_Criteria;
+    LM->Convg_Criteria = Input->Convg_Criteria;
+
     LM->Threshold = Input->Threshold;
     LM->Regul_flag = Input->Regul;
     LM->niter = Input->niter;
@@ -166,7 +177,7 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
     if(Input->nProf<1) Input->nProf=1;
     if(Input->nProf>Input->counts) Input->nProf=Input->counts;
     Subset->nProf = Input->nProf; 
-    if(Input->fastmode){
+    if(Input->cache_prof){
       Input->nProf = Input->counts;
       if(Mpi->rank == 0){
         nbuf = Input->counts;

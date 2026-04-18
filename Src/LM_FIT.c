@@ -7,9 +7,13 @@
      
      revision log:
 
+        18 Apr. 2026  (Hao Li)
+          --- Bugfix:  
+              The chisq for exit-condition has not been corretly checked. 
+
         06 Mar. 2026  (Hao Li)
           --- Updates:  
-              slightly improve the performanceß. 
+              slightly improve the performance. 
 
         18 Apr. 2025
           --- Updates: More runs if chisq twice larger than the criteria
@@ -42,7 +46,7 @@ static const double L_Pi = 3.14159265358979323846;
     }while(0)
 
 #define converg_check(Chisq,Chisq_new)              \
-    (((Chisq-Chisq_new)/Chisq)<LM->Criteria)
+    (((Chisq-Chisq_new)/Chisq)<LM->Convg_Criteria)
 
 /*--------------------------------------------------------------------------------*/
 
@@ -715,7 +719,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
 
       if(Para->Chisq<LM->Criteria){
         sav_par(Para, Stk);
-        break;
+        if(irun >= 4 || irun == LM->nruns*4) break;
       }else if(irun==0){
         sav_par(Para, Stk);
       }else if(Para->Chisq<Para->Chisq_Best){
@@ -726,6 +730,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
         if(Para->Chisq_Best<LM->Criteria*2) break;
       }
     }
+
 
     if(Para->Par_Best[1]>L_Pi){
       Para->Par_Best[1] -= L_Pi;

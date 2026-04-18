@@ -4,7 +4,7 @@ num_run = 6
 
 lines =  15648.5,  3.0
 
-data_path = ./niris_example.fits
+data_path = ./data/niris_example.fits
 
 wavelength_path = ./niriswavelength.fits
 
@@ -36,4 +36,7 @@ sol_box = -1, -1, -1, -1
 #sol_box = 20, 20, 20, 20
 
 nprofiles = 10
+
+Cache_prof = No
+Cache_inv = No
 
