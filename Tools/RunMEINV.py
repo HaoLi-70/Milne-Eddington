@@ -20,7 +20,7 @@ from pathlib import Path
 if __name__ == "__main__":
     
     if len(sys.argv) < 3:
-      raise ValueError("Usage: python script.py <data_path> np=<number>")
+      raise ValueError("Usage: python RunMEINV.py <data_path> np=<core_number>")
 
     path = sys.argv[1].strip()
     path = Path(path)

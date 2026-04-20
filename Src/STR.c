@@ -7,6 +7,10 @@
      
       revision log:
 
+        20 Apr. 2026  (Hao Li)
+          --- Bugfix:  
+              comment is not correctly removed in STR_READ_LINE function.
+
         06 Mar. 2026  (Hao Li)
           --- Updates:  
               Redesign the subroutines to improve safety. 
@@ -439,8 +443,8 @@ int STR_READ_LINE(char **line, size_t *size, FILE *fa){
       }
 
       indexspace = STR_INDEX_CHAR(*line, '!', 1);
-      if(indexspace >= 0){
-        line[indexspace] = '\0';
+      if(indexspace > 0){
+        (*line)[indexspace] = '\0';
         if (len>(size_t)indexspace){
           len = indexspace;
         }
