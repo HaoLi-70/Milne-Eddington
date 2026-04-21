@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
       config = {
         "verbose": 0,
-        "num_run": 6,
+        "num_run": 3,
         "lines": "15648.5, 3.0",
         "wavelength_path": "../niris_example/niriswavelength.fits",
         "weights": "1, 8, 8, 12",

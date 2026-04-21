@@ -7,6 +7,10 @@
      
       revision log:
 
+        21 Apr. 2026  (Hao Li)
+          --- Updates:  
+              Minor adjustment to initial values for Fe I 15648.5. 
+
         09 Mar. 2026  (Hao Li)
           --- Updates:  
               removed the support of solver for multi lines to improve. 
@@ -35,7 +39,7 @@ static const double L_C = 299792458.0;
 
 static inline double clamp(double x, double *bounds) {
 
-  /*--------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------*/
     /*######################################################################
       Purpose:
         restricts a variable to lie within a specified range.
@@ -508,12 +512,12 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
     double LV = 0.5*(Vmax-Vmin);  
     if(LV >0.1){
       Blos = Para->VCoeffi*LV;
-      if(Blos>1300) Blos = 1300.;
+      if(Blos>1500) Blos = 1500.;
       if(iVmin<iVmax) Blos = -Blos;
     }
 
     Bpos = 20+Para->LCoeffi*Lmax;
-    Bpos = Bpos<1500 ? Bpos : 1500;
+    Bpos = Bpos<2000 ? Bpos : 2000;
     if(Bpos<150) Bpos = 150;
 
     tmp1 = 0;
@@ -594,11 +598,11 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       Para->Par_Guess[2] = L_Pi/2.;
     }
 
-
-
     if(Para->lines->Lambda0>15640&&Para->lines->Lambda0<15660){
       // Doppler width
-      Para->Par_Guess[4] = 60.;
+      Para->Par_Guess[4] = 90.;
+      // Damp
+      Para->Par_Guess[5] = 0.8;
       // Eta
       Para->Par_Guess[6] = 10;
       // Beta
@@ -607,6 +611,8 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       if(Para->Par_Guess[0]>1100){
         // Doppler width
         Para->Par_Guess[4] = 20;
+        // Damp
+        Para->Par_Guess[5] = 0.5;
         // Eta
         Para->Par_Guess[6] = 20;
         // Beta
@@ -614,16 +620,14 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       }else{
         // Doppler width
         Para->Par_Guess[4] = 30;
+        // Damp
+        Para->Par_Guess[5] = 0.5;
         // Eta
         Para->Par_Guess[6] = 5;
         // Beta
         Para->Par_Guess[8] = 0.15;
       }
     }
-    //Para->Par_Guess[3] = 0.;
-
-    // Damp
-    Para->Par_Guess[5] = 0.5;
 
     // Src
     Para->Par_Guess[7] = Imax;
