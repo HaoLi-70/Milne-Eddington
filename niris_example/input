@@ -5,7 +5,6 @@ num_run = 5
 lines =  15648.5,  3.0
 
 data_path = ./data/niris_example.fits
-data_path = /Volumes/Data/Data/Data-collaboration/niris/240503/converted/niris240503_180048.fits
 
 wavelength_path = ./niriswavelength.fits
 
