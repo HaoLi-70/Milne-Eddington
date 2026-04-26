@@ -7,6 +7,10 @@
      
      revision log:
 
+        26 Apr. 2026  (Hao Li)
+          --- Updates:  
+              Minor adjustment to initial values. 
+
         18 Apr. 2026  (Hao Li)
           --- Bugfix:  
               The chisq for exit-condition has not been corretly checked. 
@@ -152,7 +156,7 @@ static int Random_Jump(STRUCT_PARA *Para, STRUCT_LM *LM, int irun){
       Purpose:
         jumping the initial azimuth another value.
       Record of revisions:
-        09 Mar. 2026.
+        26 Apr. 2026.
       Input parameters:
         Para, a structure storing the model parameters.
         LM, a structure storing the seeds for RNG.
@@ -167,38 +171,25 @@ static int Random_Jump(STRUCT_PARA *Para, STRUCT_LM *LM, int irun){
     double *parabest = Para->Par_Best;
     double *paraguess = Para->Par_Guess;
 
-    modelpara[1] = paraguess[1]+L_Pi/8.*RNG_GAUSS(State);
-    modelpara[2] = paraguess[2]+L_Pi/4.*(irun+0.3*RNG_GAUSS(State));
-    modelpara[3] = paraguess[3]+2.*RNG_GAUSS(State);
-    modelpara[5] = parabest[5];
-    modelpara[7] = parabest[7];
-    
-    if(Para->Chisq_Best < LM->Criteria*4){
-      modelpara[0] = parabest[0]+300*RNG_GAUSS(State);
-      modelpara[4] = parabest[4]+10*RNG_GAUSS(State);
-      modelpara[6] = parabest[6]+5.*RNG_GAUSS(State);
-      modelpara[8] = parabest[8]+0.2*RNG_GAUSS(State);
+    if(irun<4){
+      for(int ipar=0; ipar<9; ipar++){
+        modelpara[ipar] = parabest[ipar];
+      }
+      modelpara[2] = paraguess[2]+L_Pi/4.*irun;
 
-    }else{ 
-      
-      modelpara[8] = paraguess[8]+0.2*RNG_GAUSS(State);
+    }else{
 
-      if(parabest[0]>1500 || paraguess[0]>1500){ 
-        modelpara[0] = paraguess[0]+800*RNG_GAUSS(State);
-        modelpara[4] = paraguess[4]+10*RNG_GAUSS(State);
-        modelpara[6] = paraguess[6]+5*RNG_GAUSS(State);
-      
-      }else if(paraguess[0]>500){
-        modelpara[0] = paraguess[0]+100*RNG_GAUSS(State);
-        modelpara[4] = paraguess[4]+10*RNG_GAUSS(State);
-        modelpara[6] = paraguess[6]+2*RNG_GAUSS(State);
-      }else{
-        modelpara[0] = paraguess[0]+20*RNG_GAUSS(State);
-        modelpara[4] = paraguess[4]+10*RNG_GAUSS(State);
-        modelpara[6] = paraguess[6]+2*RNG_GAUSS(State);
-      } 
+      modelpara[0] = paraguess[0]*(1+0.6*RNG_GAUSS(State));
+      modelpara[1] = paraguess[1]+L_Pi/8.*RNG_GAUSS(State);
+      modelpara[2] = paraguess[2]+L_Pi/4.*(irun+0.3*RNG_GAUSS(State));
+      modelpara[3] = paraguess[3]+5.*RNG_GAUSS(State);
+      modelpara[4] = parabest[4]*(1+0.2*RNG_GAUSS(State));
+      modelpara[5] = paraguess[5]+0.1*RNG_GAUSS(State);
+      modelpara[6] = paraguess[6]+5*RNG_GAUSS(State);
+      modelpara[7] = parabest[7];
+      modelpara[8] = paraguess[8]+0.1*RNG_GAUSS(State);
+
     }
-    
     bounds_check(Para->Par, Para);
 
     return 0;
@@ -237,7 +228,6 @@ static int Par_update(double *Par, double *Sol, STRUCT_PARA *Para){
     }
 
     return 0;
-
 }
 
 /*--------------------------------------------------------------------------------*/
@@ -669,7 +659,7 @@ static int LM_FIT(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
     LOG_WRITE(MeSS, true, LM->verboselv>1);
     LOG_MODEL(Para->Par, LM->verboselv>1);
 
-    Para->Chisq = Chisq;
+    Para->Chisq = Chisq/Stk->normp;
 
     return it;
 }
@@ -703,6 +693,12 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
       return 0;
     }
 
+    /*
+    for(int ipar=0; ipar<9; ipar++){
+      Para->Par_Best[ipar] = Para->Par_Guess[ipar];
+    }
+    return 1;
+    */
     Noise_Init(Stk);
     int irun;
     for(irun=0; irun<LM->nruns*4; irun++){
@@ -730,7 +726,6 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
         if(Para->Chisq_Best<LM->Criteria*2) break;
       }
     }
-
 
     if(Para->Par_Best[1]>L_Pi){
       Para->Par_Best[1] -= L_Pi;
@@ -800,7 +795,7 @@ int INVERSION_MULTI(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PARA *Para, \
         for(int ipar=0; ipar<9; ipar++){
           ptr[ipar] = Para->Par_Best[ipar];
         }
-        ptr[9] = Para->Chisq_Best/Stk->normp;
+        ptr[9] = Para->Chisq_Best;
 
         if(Input->output_fit){
           memcpy((void *)ptrfit, (void *)Stk->fit_best, nshift*sizeof(double));

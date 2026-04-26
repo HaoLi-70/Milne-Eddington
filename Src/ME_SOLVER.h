@@ -57,7 +57,7 @@ typedef struct Struct_Parameter{
 typedef struct Struct_Stokes{
 
     // number of spectral lines and wavelength points;
-    int nw;
+    int nw, ncut, ic, i0, i1, ni;
     // nomalization factor, the weights for Stokes parameters and 
     // the squre of the weights
     double norm0, normp, Weights[4], Weights_SQR[4];

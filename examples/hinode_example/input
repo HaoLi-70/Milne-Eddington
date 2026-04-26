@@ -27,5 +27,4 @@ output_fit = Yes
 chisq_criteria = 1
 
 
-#fast_mode = yes
 #nprofiles = 1

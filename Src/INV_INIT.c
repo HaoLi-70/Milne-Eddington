@@ -7,6 +7,10 @@
      
       revision log:
 
+        25 Apr. 2026  (Hao Li)
+          --- Updates:  
+              Add Additional limits on Vlos. 
+
         18 Apr. 2026  (Hao Li)
           --- Bugfix:  
               A variable for exit-condition checking is added to the struct 
@@ -87,9 +91,9 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
       Purpose:
         initialize the inversion.
       Record of revisions:
-        6 Mar. 2026. 
+        25 Apr. 2026. 
       Input parameters:
-         Mpi, a structure storing Mpi info.
+        Mpi, a structure storing Mpi info.
       Return:
         return the current conts.
     ######################################################################*/
@@ -103,7 +107,7 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
       }                                                                  \
     }while(0)   
 
-    #define L_c 299792458.0
+    #define L_C 299792458.0
 
     Para->nline = Input->nline;
     Para->lines = (STRUCT_MELINE *)malloc(Para->nline*sizeof(STRUCT_MELINE));
@@ -137,12 +141,46 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
       Para->Limits[ipar][0] = Input->Limits[ipar][0];
       Para->Limits[ipar][1] = Input->Limits[ipar][1];
     }
+    Stk->ncut = Stk->nw/5;
+    double tmp = (Stk->Lambda[Stk->ncut]-Para->lines->Lambda0)*L_C/1e3;
+    if(Para->Limits[3][0]<tmp) Para->Limits[3][0] = tmp;
+    tmp = (Stk->Lambda[Stk->nw-1-Stk->ncut]-Para->lines->Lambda0)*L_C/1e3;
+    if(Para->Limits[3][1]>tmp) Para->Limits[3][1] = tmp;
+
+    for(int iw=0; iw<Stk->nw-1; iw++){
+      double tmp1 = Para->lines[0].Lambda0>Stk->Lambda[iw];
+      double tmp2 = Stk->Lambda[iw+1]*Para->lines[0].Lambda0;
+      if (tmp1>0 && tmp2>0){
+        Stk->ic = tmp1<tmp2? iw:iw+1;
+      }
+    }
+    int itmp1=2, itmp2=2;
+    if(Stk->ic-Stk->ncut>=2){
+      itmp1 = Stk->ic-Stk->ncut;
+    }
+    if(Stk->nw-1-Stk->ncut-Stk->ic>=2){
+      itmp2 = Stk->nw-1-Stk->ncut-Stk->ic;
+    }
+    int range = itmp1>itmp2? itmp1:itmp2;
+
+    Stk->i0 = Stk->ic-range;
+    if(Stk->i0 < 0){
+      Stk->i0 = 0;
+      range = Stk->ic-Stk->i0;
+    }
+    Stk->i1 = Stk->ic+range;
+    if(Stk->i1>Stk->nw-1){
+      Stk->i1=Stk->nw-1;
+      range = Stk->i1-Stk->ic;
+      Stk->i0 = Stk->ic-range;
+    }
+    Stk->ni = Stk->i1-Stk->i0+1;
 
     Para->VCoeffi = Input->VCoeffi;
     Para->LCoeffi = Input->LCoeffi;
 
     Para->delta_v = (Stk->Lambda[Stk->nw-1]-Stk->Lambda[0])/Stk->nw \
-        /Para->lines->Lambda0*L_c/1e3;
+        /Para->lines[0].Lambda0*L_C/1e3;
 
     LM->Damp = Input->Damp;
     LM->Lam_accept = Input->Lam_accept;

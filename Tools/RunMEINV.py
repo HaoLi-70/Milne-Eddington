@@ -54,15 +54,19 @@ if __name__ == "__main__":
 
       config = {
         "verbose": 0,
-        "num_run": 3,
+        "num_run": 5,
         "lines": "15648.5, 3.0",
         "wavelength_path": "../niris_example/niriswavelength.fits",
         "weights": "1, 8, 8, 12",
+        "Bounds_Bmod": "5, 5000",
+        "Bounds_Vlos": "-20, 20",
         "Bounds_Dopp": "50, 140",
-        "Bounds_Damp": "0.4, 1.1",
-        "Bounds_Beta": "0.6, 0.9",
-        "chisq_criteria": 1,
-        "LCoeffi": 350,
+        "Bounds_Damp": "0.4, 1.5",
+        "Bounds_Eta": "2, 50",
+        "Bounds_Beta": "0.1, 0.9",
+        "chisq_criteria": 5,
+        "LCoeffi": 330,
+        "VCoeffi": 330,
         "result_path": str(output),
         "data_path": str(f)
       }

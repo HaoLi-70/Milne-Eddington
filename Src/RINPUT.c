@@ -7,6 +7,10 @@
      
       revision log:
 
+        26 Apr. 2026  (Hao Li)
+          --- Updates:  
+              Minor adjustment to default the limits for model parameters.
+
         16 Apr. 2026  (Hao Li)
           --- Updates:  
               rename a keyword CACHEPROF and add an addition keyword 
@@ -416,11 +420,11 @@ int RDINPUT(const char Filename[], STRUCT_INPUT *Input, STRUCT_MPI *Mpi){
       [KEY_BTHETA_LIMIT] = KEY_DEF("Bounds_Btheta","0, 1"),                   //19
       [KEY_BPHI_LIMIT] = KEY_DEF("Bounds_Bphi","0, 1"),                       //20
       [KEY_VLOS_LIMIT] = KEY_DEF("Bounds_Vlos","-20., 20."),                  //21
-      [KEY_DOPPLER_LIMIT] = KEY_DEF("Bounds_Dopp","20, 70"),                  //22
-      [KEY_DAMPING_LIMIT] = KEY_DEF("Bounds_Damp","0.4, 0.6"),                //23
-      [KEY_ETA_LIMIT] = KEY_DEF("Bounds_Eta","2, 70"),                        //24
+      [KEY_DOPPLER_LIMIT] = KEY_DEF("Bounds_Dopp","10, 80"),                  //22
+      [KEY_DAMPING_LIMIT] = KEY_DEF("Bounds_Damp","0.4, 0.8"),                //23
+      [KEY_ETA_LIMIT] = KEY_DEF("Bounds_Eta","2, 90"),                        //24
       [KEY_CONT_LIMIT] = KEY_DEF("Bounds_Continuum","0, 1e6"),                //25
-      [KEY_BETA_LIMIT] = KEY_DEF("Bounds_Beta","0.1, 0.7"),                   //26
+      [KEY_BETA_LIMIT] = KEY_DEF("Bounds_Beta","0.1, 0.85"),                  //26
       [KEY_FIXED_BMOD] = KEY_DEF("Bmod_fixed","NO"),                          //27
       [KEY_FIXED_BTHETA] = KEY_DEF("Btheta_fixed","NO"),                      //28
       [KEY_FIXED_BPHI] = KEY_DEF("Bphi_fixed","NO"),                          //29
