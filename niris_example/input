@@ -1,19 +1,24 @@
 verbose = 0
 
-num_run = 3
+num_run = 5
 
 lines =  15648.5,  3.0
 
 data_path = ./data/niris_example.fits
+data_path = /Volumes/Data/Data/Data-collaboration/niris/240503/converted/niris240503_180048.fits
 
 wavelength_path = ./niriswavelength.fits
 
 
 weights = 1, 8, 8, 12
+#weights = 1, 1.5, 1.5, 2
 
+Bounds_Bmod = 5, 5000
+Bounds_Vlos = -20, 20
 Bounds_Dopp = 50, 140
-Bounds_Damp = 0.4, 1.1
-Bounds_Beta = 0.6, 0.9
+Bounds_Damp = 0.4, 1.5
+Bounds_Eta = 2, 50
+Bounds_Beta = 0.1, 0.9
 
 #Bphi_fixed = No 
 #Btheta_Regularization = Yes, 0.5, 1
@@ -23,11 +28,11 @@ Bounds_Beta = 0.6, 0.9
 
 output_fit = No
 
-chisq_criteria = 1
+chisq_criteria = 5
 
 
-LCoeffi = 350
-VCoeffi = 500
+LCoeffi = 300
+VCoeffi = 300
 
 sol_box = -1, -1, -1, -1
 #sol_box =  101, 101, 103, 103
@@ -35,7 +40,6 @@ sol_box = -1, -1, -1, -1
 #sol_box =  190, 190, 44, 44
 #sol_box = 20, 20, 20, 20
 
-nprofiles = 10
 
 Cache_prof = No
 Cache_inv = No
