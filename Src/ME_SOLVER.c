@@ -7,6 +7,10 @@
      
       revision log:
 
+        27 Apr. 2026  (Hao Li)
+          --- Updates:  
+              Minor adjustment to initial values. 
+
         25 Apr. 2026  (Hao Li)
           --- Updates:  
               Minor adjustment to initial values. 
@@ -450,6 +454,7 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
     ######################################################################*/
 /*--------------------------------------------------------------------------------*/
 
+    const int ic = Stk->ic;
     const int nw = Stk->nw;
     const double *profI = Stk->prof;
     const double *profQ = profI+nw;
@@ -488,7 +493,7 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       }
     }
 
-    Imean = Isum/Stk->nw;
+    Imean = Isum/nw;
     if(Imean<Stk->Icriteria) return 1;
 
     // normalization factor
@@ -512,20 +517,23 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
     }
 
     double LV = 0.5*(Vmax-Vmin);  
+    double factor = Imin>0.9*Imax? 2.:1.;
     if(LV >0.1){
-      Blos = Para->VCoeffi*LV;
-      if(Blos>1500) Blos = 1500.;
+      Blos = 20+Para->VCoeffi*LV*factor;
+      //if(Blos>1500) Blos = 1500.;
       if(iVmin<iVmax) Blos = -Blos;
     }
 
-    Bpos = 20+Para->LCoeffi*Lmax;
+    Bpos = 100+Para->LCoeffi*Lmax*factor;
     Bpos = Bpos<2200 ? Bpos : 2200;
-    if(Bpos<150) Bpos = 150;
+    //if(Bpos<200) Bpos = 200;
 
     tmp1 = 0;
     Para->Par_Guess[3] = 0;
-    if(LV>thresholdV || Lmax>thresholdL){
+    //if(LV>thresholdV || Lmax>thresholdL){
+    if(LV>thresholdV){
 
+      /*
       tmp1 = 0.5*(Lambda[iVmin]+Lambda[iVmax])-Para->lines->Lambda0;
 
       if(LV<=thresholdV){
@@ -555,8 +563,8 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
         tmp = tmp1;
       }else{
         tmp = tmp2;
-      }
-
+      }*/
+      tmp = 0.5*(Lambda[iVmin]+Lambda[iVmax])-Para->lines->Lambda0;
       Para->Par_Guess[3] = tmp/Para->lines->Lambda0*L_C/1e3;
 
     }else{
@@ -569,7 +577,6 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
             && profI[iL]<profI[iL+1] \
             && profI[iL+1]<profI[iL+2]){
           tmp = Lambda[iL]-Para->lines->Lambda0;
-          //fprintf(stderr,"a %e \n",tmp/Para->lines->Lambda0*L_C/1e3);
           valid = true;
         }
       }
@@ -577,30 +584,26 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       if(!valid){
         Lsum = 0;
         weight = 0.;
-        for(int iw=Stk->ic-4; iw<=Stk->ic+4; iw++){
-          if(iw<0) continue;
-          if(iw>=Stk->nw) continue;
-          Lsum += Lambda[iw]*(Imax-profI[iw]);
-          weight += (Imax-profI[iw]);
+        int start = (ic>7) ? (ic-7) : 0;
+        int end = (ic+7<nw)? (ic+7) : (nw-1);   
+        for(int iw=start; iw<=end; iw++){
+          const double diff = (Imax-profI[iw])
+          Lsum += Lambda[iw]*diff;
+          weight += diff;
         }
         tmp = Lsum/weight-Para->lines->Lambda0;
-        //fprintf(stderr,"b %e \n",tmp/Para->lines->Lambda0*L_C/1e3);
       }
 
       Para->Par_Guess[3] = tmp/Para->lines->Lambda0*L_C/1e3;
     }
     
-    if(Para->Par_Guess[3]>Para->delta_v*2.5){
-      Para->Par_Guess[3]=Para->delta_v*2.5;
-    }else if(Para->Par_Guess[3]<-Para->delta_v*2.5){
-      Para->Par_Guess[3]=-Para->delta_v*2.5;
-    }
 
     // Bstrength
     Para->Par_Guess[0] = sqrt(Blos*Blos+Bpos*Bpos);
 
     // Inclination
     Para->Par_Guess[1] = acos(Blos/Para->Par_Guess[0]);
+    if(Para->Par_Guess[0] > 3000) Para->Par_Guess[0] = 3000;
     
     // tan(2*alpha) = U/Q;
     weight = 0.;
@@ -627,7 +630,7 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
       // Damp
       Para->Par_Guess[5] = 0.5;
       // Eta
-      Para->Par_Guess[6] = 20;
+      Para->Par_Guess[6] = 15;
       // Beta
       Para->Par_Guess[8] = 0.7;
     }else{

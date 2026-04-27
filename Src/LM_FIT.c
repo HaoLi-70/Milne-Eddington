@@ -699,6 +699,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
     }
     return 1;
     */
+
     Noise_Init(Stk);
     int irun;
     for(irun=0; irun<LM->nruns*4; irun++){

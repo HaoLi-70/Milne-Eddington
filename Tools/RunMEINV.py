@@ -65,8 +65,8 @@ if __name__ == "__main__":
         "Bounds_Eta": "2, 50",
         "Bounds_Beta": "0.1, 0.9",
         "chisq_criteria": 5,
-        "LCoeffi": 330,
-        "VCoeffi": 330,
+        "LCoeffi": 300,
+        "VCoeffi": 300,
         "result_path": str(output),
         "data_path": str(f)
       }
