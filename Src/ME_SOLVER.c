@@ -7,6 +7,10 @@
      
       revision log:
 
+        28 Apr. 2026  (Hao Li)
+          --- Bugfix:  
+              fix a missing ';'. 
+
         27 Apr. 2026  (Hao Li)
           --- Updates:  
               Minor adjustment to initial values. 
@@ -587,7 +591,7 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
         int start = (ic>7) ? (ic-7) : 0;
         int end = (ic+7<nw)? (ic+7) : (nw-1);   
         for(int iw=start; iw<=end; iw++){
-          const double diff = (Imax-profI[iw])
+          const double diff = (Imax-profI[iw]);
           Lsum += Lambda[iw]*diff;
           weight += diff;
         }
