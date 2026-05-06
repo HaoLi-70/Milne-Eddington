@@ -9,7 +9,8 @@
 
         06 May. 2026  (Hao Li)
           --- Bugfix:
-              fix buffer overflow in w array. 
+              Fix buffer overflow in w array. 
+              Remove duplicated check on w array.
 
         26 Apr. 2026  (Hao Li)
           --- Updates:  

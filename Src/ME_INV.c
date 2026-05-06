@@ -48,6 +48,19 @@
 
 /*--------------------------------------------------------------------------------*/
 
+    /*######################################################################
+     
+     revision log:
+
+        06 May. 2026  (Hao Li)
+          --- Bugfix:
+              correct the profile number. 
+
+    ######################################################################*/
+
+/*--------------------------------------------------------------------------------*/
+
+
 int main(int argc, char *argv[]) {
 
 #if defined(PARALLEL_MPIOPENMP)
@@ -140,6 +153,7 @@ int main(int argc, char *argv[]) {
             if(Subset.nProf > Input.counts-Subset.pcounts){ 
               Subset.nProf = Input.counts-Subset.pcounts;
             }
+
             MPI_Send(&Subset.nProf, 1, MPI_INT, pid, TAG_NPROF, \
                 MPI_COMM_WORLD);
             MPI_Send(Subset.coord, 2, MPI_INT, pid, TAG_COORD, \
@@ -190,7 +204,7 @@ int main(int argc, char *argv[]) {
           }
 
           if(!Input.cache_prof){
-            WRITE_RESULT(&Input, &SubsetRV, &Stk);
+            WRITE_RESULT(&Input, &SubsetRV, &Stk);        
           }
 
           rcounts += SubsetRV.nProf;
@@ -199,6 +213,9 @@ int main(int argc, char *argv[]) {
 
             if(!Input.cache_prof && Input.cache[icache]){
               icache++;
+              if(Subset.nProf > Input.counts-Subset.pcounts){ 
+                Subset.nProf = Input.counts-Subset.pcounts;
+              }
               PixelMV(&Input, &Subset);
               rcounts += Subset.nProf;
             }else{
@@ -208,7 +225,11 @@ int main(int argc, char *argv[]) {
           }
 
           if(valid){
+
             icache++;
+            if(Subset.nProf > Input.counts-Subset.pcounts){ 
+              Subset.nProf = Input.counts-Subset.pcounts;
+            }
             MPI_Send(&Subset.nProf, 1, MPI_INT, src, TAG_NPROF, \
                 MPI_COMM_WORLD);
             MPI_Send(Subset.coord, 2, MPI_INT, src, TAG_COORD, \
