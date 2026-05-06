@@ -7,6 +7,10 @@
      
      revision log:
 
+        06 May. 2026  (Hao Li)
+          --- Bugfix:
+              fix buffer overflow in w array. 
+
         26 Apr. 2026  (Hao Li)
           --- Updates:  
               Minor adjustment to initial values. 
@@ -422,21 +426,12 @@ static inline int SVD_solve_mem(STRUCT_LM *LM){
     }
 #endif
 
-    for(int ii=0; ii<=ndim; ii++){ 
-      if(LM->W[ii]<Wthreshold){
-        LM->W[ii] = 0.;
-      }
-    }
-
-    svbksb_double(&(LM->Hessian), &(LM->V), LM->W, LM->Jacfvec, \
-        LM->Sol);
-
     bool bracked;
     while(1){
 
       Wthreshold = WMAX*threshold;
 
-      for(int ii=0; ii<=ndim; ii++){ 
+      for(int ii=0; ii<ndim; ii++){ 
         if(LM->W[ii]<Wthreshold){
           LM->W[ii] = 0.;
         }

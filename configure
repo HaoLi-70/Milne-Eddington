@@ -49,7 +49,7 @@ for arg in "$@"; do
         --disable-openblas) enable_openblas=no ;;
         --debug) 
 	    enable_debug=yes
-	    cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds 
+	    cflags="-g -O1 -Wall -Wshadow -Wextra -Warray-bounds \
 		-pedantic -DDEBUG" ;;
         --hard) cflags="-O3" ;;
         --help)

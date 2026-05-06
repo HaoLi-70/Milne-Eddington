@@ -122,7 +122,7 @@ void LOG_WRITE(const char *msg, bool to_screen, bool verbose_flag){
     ######################################################################*/
 /*--------------------------------------------------------------------------------*/
 
-    if (verbose_flag) {
+    if(verbose_flag){
       if(to_screen) fprintf(stderr, "%s\n", msg);
       if(log_file) fprintf(log_file, "%s\n", msg);
     }
@@ -211,7 +211,7 @@ void LOG_MODEL(const double *Par, bool verbose_flag){
 
 bool FILE_EXIST(const char *Filename){
 
-/*--------------------------------------------------------------------------------*/    
+/*--------------------------------------------------------------------------------*/
     /*######################################################################
       Purpose:
         check if a file exists.
