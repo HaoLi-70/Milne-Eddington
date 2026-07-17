@@ -7,6 +7,10 @@
      
       revision log:
 
+        17 Jul. 2026  (Hao Li)
+          --- Updates:  
+              Slightly modify the initial guess. 
+
         28 Apr. 2026  (Hao Li)
           --- Bugfix:  
               fix a missing ';'. 
@@ -642,20 +646,20 @@ int Init_Guess(STRUCT_STK *Stk, STRUCT_PARA *Para){
         // Doppler width
         Para->Par_Guess[4] = 20;
         // Damp
-        Para->Par_Guess[5] = 0.5;
+        Para->Par_Guess[5] = 0.4;
         // Eta
-        Para->Par_Guess[6] = 20;
+        Para->Par_Guess[6] = 15;
         // Beta
         Para->Par_Guess[8] = 0.3;
       }else{
         // Doppler width
-        Para->Par_Guess[4] = 30;
+        Para->Par_Guess[4] = 20;
         // Damp
-        Para->Par_Guess[5] = 0.5;
+        Para->Par_Guess[5] = 0.4;
         // Eta
-        Para->Par_Guess[6] = 5;
+        Para->Par_Guess[6] = 15;
         // Beta
-        Para->Par_Guess[8] = 0.15;
+        Para->Par_Guess[8] = 0.3;
       }
     }
 

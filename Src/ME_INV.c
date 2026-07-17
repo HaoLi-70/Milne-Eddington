@@ -52,6 +52,11 @@
      
      revision log:
 
+        17 Jul. 2026  (Hao Li)
+          --- Updates:  
+              Disable stderr buffering with setbuf(stderr, NULL). 
+
+
         06 May. 2026  (Hao Li)
           --- Bugfix:
               correct the profile number. 
@@ -78,6 +83,7 @@ int main(int argc, char *argv[]) {
     MPI_Status status;
 #endif 
 
+    setbuf(stderr, NULL);
     STRUCT_MPI Mpi = {0};
     MPI_SETUP(&Mpi);
     Timer(&Mpi);

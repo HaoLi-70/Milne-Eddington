@@ -7,6 +7,10 @@
      
      revision log:
 
+        17 Jul. 2026  (Hao Li)
+          --- Updates:  
+              Slightly modify the initial guess. 
+
         06 May. 2026  (Hao Li)
           --- Bugfix:
               Fix buffer overflow in w array. 
@@ -45,6 +49,7 @@
 
 // Pi Ratio of circumference to diameter
 static const double L_Pi = 3.14159265358979323846;
+static const int nr = 2; 
 
 #define M_SWAP(a,b)                                 \
     do{                                             \
@@ -176,24 +181,33 @@ static int Random_Jump(STRUCT_PARA *Para, STRUCT_LM *LM, int irun){
     double *parabest = Para->Par_Best;
     double *paraguess = Para->Par_Guess;
 
-    if(irun<4){
+    if(irun<nr){
       for(int ipar=0; ipar<9; ipar++){
         modelpara[ipar] = parabest[ipar];
       }
-      modelpara[2] = paraguess[2]+L_Pi/4.*irun;
+      modelpara[2] = paraguess[2]+L_Pi/nr*irun;
 
     }else{
 
-      modelpara[0] = paraguess[0]*(1+0.6*RNG_GAUSS(State));
+      modelpara[0] = paraguess[0]*(1+0.4*RNG_GAUSS(State));
       modelpara[1] = paraguess[1]+L_Pi/8.*RNG_GAUSS(State);
       modelpara[2] = paraguess[2]+L_Pi/4.*(irun+0.3*RNG_GAUSS(State));
-      modelpara[3] = paraguess[3]+5.*RNG_GAUSS(State);
-      modelpara[4] = parabest[4]*(1+0.2*RNG_GAUSS(State));
-      modelpara[5] = paraguess[5]+0.1*RNG_GAUSS(State);
-      modelpara[6] = paraguess[6]+5*RNG_GAUSS(State);
       modelpara[7] = parabest[7];
-      modelpara[8] = paraguess[8]+0.1*RNG_GAUSS(State);
 
+      if(Para->Chisq_Best<LM->Criteria*4){
+        modelpara[4] = parabest[4]*(1+0.2*RNG_GAUSS(State));
+        modelpara[3] = parabest[3]+3.*RNG_GAUSS(State);
+        modelpara[5] = parabest[5]+0.1*RNG_GAUSS(State);
+        modelpara[6] = parabest[6]+5*RNG_GAUSS(State);
+        modelpara[8] = parabest[8]+0.1*RNG_GAUSS(State);
+      }else{
+        modelpara[4] = paraguess[4]*(1+0.5*RNG_GAUSS(State));
+        modelpara[3] = paraguess[3]+5.*RNG_GAUSS(State);
+        modelpara[5] = paraguess[5]+0.1*RNG_GAUSS(State);
+        modelpara[6] = paraguess[6]+5*RNG_GAUSS(State);
+        modelpara[8] = paraguess[8]+0.1*RNG_GAUSS(State);
+
+      }
     }
     bounds_check(Para->Par, Para);
 
@@ -698,7 +712,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
 
     Noise_Init(Stk);
     int irun;
-    for(irun=0; irun<LM->nruns*4; irun++){
+    for(irun=0; irun<LM->nruns*nr; irun++){
       
       sprintf(MeSS, "\n ### inversion run: %d  \n", irun);
       LOG_WRITE(MeSS, true, LM->verboselv>1);
@@ -712,14 +726,14 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
 
       if(Para->Chisq<LM->Criteria){
         sav_par(Para, Stk);
-        if(irun >= 4 || irun == LM->nruns*4) break;
+        break;
       }else if(irun==0){
         sav_par(Para, Stk);
       }else if(Para->Chisq<Para->Chisq_Best){
         sav_par(Para, Stk);
       }
 
-      if(irun >= LM->nruns*2){
+      if(irun >= LM->nruns*(nr/2)){
         if(Para->Chisq_Best<LM->Criteria*2) break;
       }
     }
