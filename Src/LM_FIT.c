@@ -7,6 +7,11 @@
      
      revision log:
 
+        29 Jul. 2026  (Hao Li)
+          --- Bugfix:
+              Fix inversion return status when convergence is reached after 
+              the first iteration. 
+
         17 Jul. 2026  (Hao Li)
           --- Updates:  
               Slightly modify the initial guess. 
@@ -683,7 +688,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
       Purpose:
         ME inversion of Stokes profiles
       Record of revisions:
-        09 Mar. 2026
+        29 Jul. 2026
       Input parameters:
         Stk, a structure storing the Stokes profiles
         Para, a structure storing the model parameters
@@ -700,7 +705,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
       for(int ipar=0; ipar<9; ipar++){
         Para->Par_Best[ipar] = 0;
       }
-      return 0;
+      return -1;
     }
 
     /*
@@ -712,7 +717,8 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
 
     Noise_Init(Stk);
     int irun;
-    for(irun=0; irun<LM->nruns*nr; irun++){
+    int nruns = LM->nruns*nr>2 ? LM->nruns*nr : 2;
+    for(irun=0; irun<nruns; irun++){
       
       sprintf(MeSS, "\n ### inversion run: %d  \n", irun);
       LOG_WRITE(MeSS, true, LM->verboselv>1);
@@ -724,17 +730,18 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
 
       LM_FIT(Stk, Para, LM);
 
-      if(Para->Chisq<LM->Criteria){
-        sav_par(Para, Stk);
-        break;
-      }else if(irun==0){
+      if(irun==0){
         sav_par(Para, Stk);
       }else if(Para->Chisq<Para->Chisq_Best){
         sav_par(Para, Stk);
       }
 
-      if(irun >= LM->nruns*(nr/2)){
-        if(Para->Chisq_Best<LM->Criteria*2) break;
+      if(irun>0){
+        if(Para->Chisq_Best<LM->Criteria){
+          break;
+        }else if(irun >= LM->nruns*(nr/2) && Para->Chisq_Best<LM->Criteria*2){
+          break;
+        }
       }
     }
 
@@ -752,7 +759,7 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
     LOG_WRITE(MeSS, true, LM->verboselv>0);
     LOG_MODEL(Para->Par_Best, LM->verboselv>0);
 
-    return irun;
+    return irun+1;
 }
 
 /*--------------------------------------------------------------------------------*/
@@ -765,7 +772,7 @@ int INVERSION_MULTI(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PARA *Para, \
       Purpose:
         ME inversion of Stokes profiles
       Record of revisions:
-        09 Mar. 2026
+        29 Jul. 2026
       Input parameters:
         Input, the input configuration.
         Stk, a structure storing the Stokes profiles
@@ -796,10 +803,14 @@ int INVERSION_MULTI(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_PARA *Para, \
       bool valid = true;
       if(isnan(Imean) || Imean<Input->Icriteria){ 
         valid = false;
+        ptr[9] = -1.;
       }
 
       if(valid){
-        if(!INVERSION(Stk, Para, LM)) valid = false;
+        if(INVERSION(Stk, Para, LM)<0){ 
+          valid = false;
+          ptr[9] = -2.;
+        }
       }
     
       if(valid){
