@@ -142,9 +142,11 @@ int INIT_INV(STRUCT_INPUT *Input, STRUCT_STK *Stk, STRUCT_LM *LM, \
       Para->Limits[ipar][1] = Input->Limits[ipar][1];
     }
     Stk->ncut = Stk->nw/5;
-    double tmp = (Stk->Lambda[Stk->ncut]-Para->lines->Lambda0)*L_C/1e3;
+    double tmp = (Stk->Lambda[Stk->ncut]-Para->lines->Lambda0) \
+        /Para->lines->Lambda0*L_C/1e3;
     if(Para->Limits[3][0]<tmp) Para->Limits[3][0] = tmp;
-    tmp = (Stk->Lambda[Stk->nw-1-Stk->ncut]-Para->lines->Lambda0)*L_C/1e3;
+    tmp = (Stk->Lambda[Stk->nw-1-Stk->ncut]-Para->lines->Lambda0) \
+        /Para->lines->Lambda0*L_C/1e3;
     if(Para->Limits[3][1]>tmp) Para->Limits[3][1] = tmp;
 
     for(int iw=0; iw<Stk->nw-1; iw++){

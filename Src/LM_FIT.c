@@ -745,9 +745,6 @@ static int INVERSION(STRUCT_STK *Stk, STRUCT_PARA *Para, STRUCT_LM *LM){
       }
     }
 
-    if(Para->Par_Best[1]>L_Pi){
-      Para->Par_Best[1] -= L_Pi;
-    }
     if(LM->HMI_REF){
       Para->Par_Best[2] += 0.5*L_Pi;
       if(Para->Par_Best[2]>L_Pi) Para->Par_Best[2] -= L_Pi;

@@ -7,6 +7,10 @@
      
       revision log:
 
+        28 Sep. 2026  (Hao Li)
+          --- Bugfix: 
+              fix a bug in Faddeeva916 for large x+ya.
+
         07 Mar. 2026  (Hao Li)
           --- Updates: 
               Use doubles for real/imag parts to avoid complex double. 
@@ -291,7 +295,7 @@ int Faddeeva916(double Nu, double y, double *H, double *L, \
       Purpose:
         Faddeyeva function (algorithm 916).
       Record of revisions:
-        9 Jun 2024 (Hao Li)
+        12 Sep 2026 (Hao Li)
       Input parameters:
         Nu, reduced wavelength or frequency shift.
         y, damping parameter.
@@ -318,13 +322,15 @@ int Faddeeva916(double Nu, double y, double *H, double *L, \
 
     if(x+ya>1e7){
       if(x<ya){
-        double xs = x/ya;
-        *H = 1./L_SqrtPi/(xs*xs+1.);
-        *L = xs/L_SqrtPi/(xs*xs+1.);
+        const double xs = x/ya;
+        const double scale = (1.0/ya)/L_SqrtPi/(xs*xs+1.0);
+        *H = scale;
+        *L = copysign(xs*scale, Nu);
       }else{
-        double ys = ya/x;
-        *H = ys/L_SqrtPi/(ys*ys+1.);
-        *L = 1./L_SqrtPi/(ys*ys+1.);
+        const double ys = ya/x;
+        const double scale = (1.0/x)/L_SqrtPi/(ys*ys+1.0);
+        *H = ys*scale;
+        *L = copysign(scale, Nu);
       }
       return 0;
     }

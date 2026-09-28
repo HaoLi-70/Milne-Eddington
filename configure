@@ -302,7 +302,7 @@ EOF
         lflags=$(add_flag_once "$lflags" "-lopenblas")
 
     # macOS Homebrew 
-    elif [ "$OS" = "Darwin" ] &&brew --prefix openblas >/dev/null 2>&1; then
+    elif [ "$OS" = "Darwin" ] && brew --prefix openblas >/dev/null 2>&1; then
         OPENBLAS_PREFIX=$(brew --prefix openblas)
         echo "Using Homebrew OPENBLAS"
 
